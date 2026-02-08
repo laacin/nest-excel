@@ -3,22 +3,18 @@ import { readFile, stream } from 'xlsx';
 
 @Injectable()
 export class AppService {
-  getHello(): string {
-    return 'Hello World!';
-  }
-
   async readXlsx(
     fileName: string,
     batchSize: number,
-    onBatch: (batch: Record<string, any>[]) => Promise<void>,
+    onBatch: (batch: Record<string, unknown>[]) => Promise<void>,
   ) {
     const wb = readFile(fileName);
     const sheet = wb.Sheets[wb.SheetNames[0]];
 
     const data = stream.to_json(sheet, { raw: true }) as AsyncIterable<
-      Record<string, any>
+      Record<string, unknown>
     >;
-    let batch: Record<string, any>[] = [];
+    let batch: Record<string, unknown>[] = [];
 
     for await (const row of data) {
       batch.push(row);
