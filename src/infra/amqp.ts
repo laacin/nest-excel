@@ -1,20 +1,25 @@
+import { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import type { Channel, ChannelModel, ConsumeMessage } from 'amqplib';
 import amqp from 'amqplib';
 import { QueueService } from 'src/domain/repository';
 
-export class RabbitMQConn implements QueueService {
+export class RabbitMQConn
+  implements QueueService, OnModuleInit, OnModuleDestroy
+{
   private conn: ChannelModel;
   private ch: Channel;
 
-  async connect(url: string): Promise<void> {
-    const conn = await amqp.connect(url);
+  async onModuleInit() {
+    const conn = await amqp.connect(
+      process.env.AMQP_URL ?? 'amqp://guest:guest@localhost:5672',
+    );
     const ch = await conn.createChannel();
     await ch.assertQueue('jobs');
     this.conn = conn;
     this.ch = ch;
   }
 
-  async close(): Promise<void> {
+  async onModuleDestroy() {
     await this.ch.close();
     await this.conn.close();
   }

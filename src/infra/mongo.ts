@@ -1,6 +1,6 @@
 import { DynSchema, Row, RowError, Status } from 'src/domain/entity';
 import { connect, model, Model, Mongoose, Schema } from 'mongoose';
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PersistLayer } from 'src/domain/repository';
 
 const mongoSchema = new Schema<DynSchema>({
@@ -11,19 +11,21 @@ const mongoSchema = new Schema<DynSchema>({
 });
 
 @Injectable()
-export class MongoConn implements PersistLayer {
+export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
   private job: Model<DynSchema>;
   private conn: Mongoose;
 
-  async connect(url: string): Promise<void> {
-    const conn = await connect(url);
+  async onModuleInit() {
+    const conn = await connect(
+      process.env.MONGO_URL ?? 'mongodb://localhost:27017/mydb',
+    );
     const job = model('job', mongoSchema);
 
     this.conn = conn;
     this.job = job;
   }
 
-  async close(): Promise<void> {
+  async onModuleDestroy() {
     await this.conn.disconnect();
   }
 
