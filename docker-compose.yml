@@ -1,0 +1,19 @@
+version: '3.9'
+
+services:
+  mongo:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+
+  rabbitmq:
+    image: rabbitmq:latest
+    container_name: amqp
+    ports:
+      - '5672:5672'
+
+volumes:
+  mongo_data:
