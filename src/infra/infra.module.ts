@@ -1,14 +1,13 @@
 import { Module } from '@nestjs/common';
-import { PERSIST, QUEUE } from 'src/domain/repository';
-import { MongoConn } from './mongo';
-import { RabbitMQConn } from './amqp';
+import { PERSIST } from 'src/domain/repository';
+import { MongoConn } from './persist/repository';
 
 @Module({
   imports: [],
   providers: [
     { provide: PERSIST, useClass: MongoConn },
-    { provide: QUEUE, useClass: RabbitMQConn },
+    // { provide: QUEUE, useClass: RabbitMQConn },
   ],
-  exports: [PERSIST, QUEUE],
+  exports: [PERSIST],
 })
 export class InfraModule {}

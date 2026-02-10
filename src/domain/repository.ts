@@ -1,25 +1,24 @@
-import { Data, Status, RawData, Row, CellError } from './entity';
+import { Data, Status, TableInfo, Row, CellError } from './entity';
 
 export const PERSIST = 'PERSIST';
 export interface PersistLayer {
-  storeJob(data: RawData): Promise<void>;
+  storeJob(info: TableInfo): Promise<void>;
   addRowsToJob(jobId: string, rows: unknown[][]): Promise<void>; // <- job must exists
 
   getJobStatus(jobId: string): Promise<Status>;
   setAsProcessing(jobId: string): Promise<void>;
   setAsDone(jobId: string): Promise<void>;
 
-  getJobInfo(jobId: string): Promise<Omit<RawData, 'rows'>>;
+  getJobInfo(jobId: string): Promise<TableInfo>;
   getJobData(
     jobId: string,
     limit: number,
     offset: number,
-  ): Promise<Pick<RawData, 'rows'>>;
+  ): Promise<unknown[][]>;
   deleteTmpData(jobId: string): Promise<void>;
 
-  storeData(data: Data): Promise<void>;
-  addRowsToData(jobId: string, rows: Row[], errs?: CellError[]): Promise<void>;
-  getData(jobId: string): Promise<Data>;
+  storeData(jobId: string, rows?: Row[], errs?: CellError[]): Promise<void>;
+  getData(jobId: string, filter: DataFilter): Promise<Partial<Data>>;
 }
 
 // export const QUEUE = 'QUEUE';
@@ -27,3 +26,9 @@ export interface PersistLayer {
 //   send(data: Record<string, unknown>[]): void;
 //   // sendOnBatches(callback: (data: OnConsumeOnBatches) => Promise<void>): void;
 // }
+
+export type DataFilter = {
+  [K in keyof Data]?: K extends 'rows' | 'errors'
+    ? { limit: number; offset: number }
+    : boolean;
+};

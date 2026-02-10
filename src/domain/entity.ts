@@ -8,19 +8,16 @@ export interface CellError {
   row: number;
 }
 
-export interface RawData {
+export interface TableInfo {
   jobId: string;
   format: string;
   cols: string[];
-  rows?: unknown[][];
 }
 
 export interface Data {
-  jobId: string;
-  format: string;
-  cols: string[];
+  tableInfo: TableInfo;
   rows: Row[];
-  errors?: CellError[];
+  errors: CellError[];
 }
 
 export enum Status {
