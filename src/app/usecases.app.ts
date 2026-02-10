@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { XlsxService } from './xlsx.service';
 import { Format, resolveRow } from 'src/domain/format';
-import { RowError, Status } from 'src/domain/entity';
+import { CellError, Status } from 'src/domain/entity';
 import { QUEUE, PERSIST } from 'src/domain/repository';
 import type { PersistLayer, QueueService } from 'src/domain/repository';
 
@@ -36,11 +36,11 @@ export class XlsxUseCase {
   ): {
     id: string;
     valids: unknown[];
-    errors?: RowError[];
+    errors?: CellError[];
   } {
     const id = crypto.randomUUID();
     const valids: unknown[] = [];
-    const errors: RowError[] = [];
+    const errors: CellError[] = [];
 
     const [cols, rows] = this.XLSX.read(fileName);
     const colIndex = fmt.getColIndex(cols);
@@ -59,6 +59,10 @@ export class XlsxUseCase {
     }
 
     return { id, valids, errors };
+  }
+
+  async handleOnQueue(data: unknown[][]): Promise<void> {
+    const [cols, ...rows] = data;
   }
 
   // getWithHeaders(file: string): XlsxResult {

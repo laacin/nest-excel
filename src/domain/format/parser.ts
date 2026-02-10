@@ -1,5 +1,5 @@
 import { FormatInfo, FormatType } from './format';
-import { Row, RowError } from '../entity';
+import { Row, CellError } from '../entity';
 
 interface ResolveRowParams {
   fmt: FormatInfo[];
@@ -10,7 +10,7 @@ interface ResolveRowParams {
 
 interface ResolveRowReturn {
   row: Row;
-  errs?: RowError[];
+  errs?: CellError[];
 }
 
 export const resolveRow = ({
@@ -20,7 +20,7 @@ export const resolveRow = ({
   rowData,
 }: ResolveRowParams): ResolveRowReturn => {
   const result: unknown[] = [];
-  const errs: RowError[] = [];
+  const errs: CellError[] = [];
 
   for (let i = 0; i < fmt.length; i++) {
     const cellValue = rowData[colIndex[i]];
