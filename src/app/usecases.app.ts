@@ -1,88 +1,94 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { XlsxService } from './xlsx.service';
 import { Format, resolveRow } from 'src/domain/format';
-import { CellError, Status } from 'src/domain/entity';
-import { QUEUE, PERSIST } from 'src/domain/repository';
-import type { PersistLayer, QueueService } from 'src/domain/repository';
+import { CellError, RawData, Row, Status } from 'src/domain/entity';
+import { PERSIST } from 'src/domain/repository';
+import type { PersistLayer } from 'src/domain/repository';
+
+const XLSX_READ_BATCH_SIZE = 100;
+const QUEUE_BATCH_SIZE = 100;
 
 @Injectable()
 export class XlsxUseCase {
   constructor(
-    @Inject(PERSIST) private readonly PERSIST: PersistLayer,
-    @Inject(QUEUE) private readonly MSG: QueueService,
+    @Inject(PERSIST) private readonly persist: PersistLayer,
+    // @Inject(QUEUE) private readonly msg: QueueService,
     private readonly XLSX: XlsxService,
   ) {}
 
-  async uploadXLSX(fileName: string): Promise<string> {
-    const id = crypto.randomUUID();
-    await this.PERSIST.setOnQueue(id);
+  // TODO: handle errors
+  async uploadFile(fileName: string, format: string): Promise<string> {
+    let first = true;
+    const jobId = crypto.randomUUID();
 
-    await this.XLSX.stream(fileName, 100, (b) => {
-      this.MSG.send(b);
+    await this.XLSX.stream(fileName, XLSX_READ_BATCH_SIZE, async (b) => {
+      if (first) {
+        const [cols, ...rows] = b;
+        await this.persist.storeJob({
+          jobId,
+          format,
+          cols: cols as string[],
+          rows,
+        });
+        first = false;
+      } else {
+        await this.persist.addRowsToJob(jobId, b);
+      }
     });
 
-    return id;
+    return jobId;
   }
 
-  async checkStatus(id: string): Promise<Status> {
-    const status = await this.PERSIST.checkStatus(id);
-    if (status === undefined) return status!; // TODO: <- handle it;
-    return status;
+  async checkJobStatus(jobId: string): Promise<Status> {
+    return await this.persist.getJobStatus(jobId);
   }
 
-  uploadTest(
-    fileName: string,
-    fmt: Format,
-  ): {
-    id: string;
-    valids: unknown[];
-    errors?: CellError[];
-  } {
-    const id = crypto.randomUUID();
-    const valids: unknown[] = [];
-    const errors: CellError[] = [];
+  async processData(jobId: string): Promise<void> {
+    await this.persist.setAsProcessing(jobId);
 
-    const [cols, rows] = this.XLSX.read(fileName);
-    const colIndex = fmt.getColIndex(cols);
+    const jobInfo = await this.persist.getJobInfo(jobId);
+    const fmt = new Format(jobInfo.format);
+    const colIndex = fmt.getColIndex(jobInfo.cols);
 
-    for (let i = 0; i < rows.length; i++) {
-      const { row, errs } = resolveRow({
-        fmt: fmt.getInfo(),
-        colIndex,
-        rowData: rows[i],
-        rowIdx: i,
-      });
-      if (errs) {
-        errors.push(...errs);
+    let offset = 0;
+    let batch: Pick<RawData, 'rows'>;
+    do {
+      batch = await this.persist.getJobData(jobId, QUEUE_BATCH_SIZE, offset);
+      if (!batch.rows) break;
+
+      let rows: Row[] = [];
+      let errors: CellError[] = [];
+
+      for (let i = 0; i < batch.rows.length; i++) {
+        const { row, errs } = resolveRow({
+          fmt: fmt.getInfo(),
+          colIndex,
+          rowData: batch.rows[i],
+          rowIdx: i + offset,
+        });
+        if (errs) {
+          errors.push(...errs);
+        }
+        rows.push(row);
       }
-      valids.push(row.data);
-    }
 
-    return { id, valids, errors };
+      if (offset === 0) {
+        await this.persist.storeData({
+          jobId: jobInfo.jobId,
+          format: jobInfo.format,
+          cols: jobInfo.cols,
+          rows,
+          errors,
+        });
+      } else {
+        await this.persist.addRowsToData(jobId, rows, errors);
+      }
+
+      rows = [];
+      errors = [];
+      offset += batch.rows.length;
+    } while (batch.rows?.length === QUEUE_BATCH_SIZE);
+
+    await this.persist.setAsDone(jobId);
   }
-
-  async handleOnQueue(data: unknown[][]): Promise<void> {
-    const [cols, ...rows] = data;
-  }
-
-  // getWithHeaders(file: string): XlsxResult {
-  //   return this.XLSX.read(file);
-  // }
-
-  // async queueLogic({
-  //   id,
-  //   format,
-  //   batch,
-  //   chunk,
-  // }: {
-  //   id: string;
-  //   format: Format;
-  //   batch: Record<string, unknown>[];
-  //   chunk: number;
-  // }): Promise<void> {
-  //   for (let i = 0; i < batch.length; i++) {
-  //     const data = batch[i];
-  //     const [row, errs] = resolveRow(format, { data, index: 1 });
-  //   }
-  // }
 }

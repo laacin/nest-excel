@@ -6,36 +6,31 @@ export class XlsxService {
   async stream(
     fileName: string,
     batchSize: number,
-    onBatch: (batch: Record<string, unknown>[], offset: number) => void,
+    onBatch: (batch: unknown[][]) => Promise<void>,
   ) {
     const wb = readFile(fileName);
     const sheet = wb.Sheets[wb.SheetNames[0]];
 
-    const data = stream.to_json(sheet) as AsyncIterable<
-      Record<string, unknown>
+    const data = stream.to_json(sheet, { header: 1 }) as AsyncIterable<
+      unknown[][]
     >;
-    let batch: Record<string, unknown>[] = [];
-    let offset = 0;
+    let batch: unknown[][] = [];
 
     for await (const row of data) {
       batch.push(row);
 
       if (batch.length == batchSize) {
-        onBatch(batch, offset);
-        offset += batch.length;
+        await onBatch(batch);
         batch = [];
       }
     }
   }
 
-  read(fileName: string): [string[], unknown[][]] {
+  read(fileName: string): unknown[][] {
     const wb = readFile(fileName);
     const sheet = wb.Sheets[wb.SheetNames[0]];
-    const data: unknown[][] = utils.sheet_to_json(sheet, {
+    return utils.sheet_to_json(sheet, {
       header: 1,
     });
-
-    const [cols, ...rows] = data;
-    return [cols as string[], rows];
   }
 }
