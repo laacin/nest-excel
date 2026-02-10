@@ -14,7 +14,8 @@ export class RabbitMQConn
       process.env.AMQP_URL ?? 'amqp://guest:guest@localhost:5672',
     );
     const ch = await conn.createChannel();
-    await ch.assertQueue('jobs');
+    await ch.assertQueue('jobs', { durable: true });
+    await ch.prefetch(1);
     this.conn = conn;
     this.ch = ch;
   }

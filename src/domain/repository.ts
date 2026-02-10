@@ -10,4 +10,12 @@ export interface PersistLayer {
 export const QUEUE = 'QUEUE';
 export interface QueueService {
   send(data: Record<string, unknown>[]): void;
+  // sendOnBatches(callback: (data: OnConsumeOnBatches) => Promise<void>): void;
 }
+
+// interface OnConsumeOnBatches {
+//   batch: Record<string, unknown>[];
+//   batchSize: number;
+//   chunk: number;
+//   last_chunk: boolean;
+// }

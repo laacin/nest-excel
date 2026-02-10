@@ -1,12 +1,11 @@
 export interface Row {
-  index: number;
-  data: Record<string, unknown>;
+  num: number;
+  data: unknown[];
 }
 
 export interface RowError {
   col: number;
   row: number;
-  reason: 'invalid' | 'missing';
 }
 
 export interface DynSchema {

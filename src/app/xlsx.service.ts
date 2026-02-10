@@ -28,9 +28,14 @@ export class XlsxService {
     }
   }
 
-  read(fileName: string): Record<string, unknown>[] {
+  read(fileName: string): [string[], unknown[][]] {
     const wb = readFile(fileName);
     const sheet = wb.Sheets[wb.SheetNames[0]];
-    return utils.sheet_to_json(sheet);
+    const data: unknown[][] = utils.sheet_to_json(sheet, {
+      header: 1,
+    });
+
+    const [cols, ...rows] = data;
+    return [cols as string[], rows];
   }
 }

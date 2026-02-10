@@ -1,71 +1,68 @@
-import { Row, RowError } from './entity';
+import { FormatInfo, FormatType } from './format';
+import { Row, RowError } from '../entity';
 
-export type Format = Record<string, string>;
-type FormatType = 'string' | 'number' | 'boolean' | 'date';
+interface ResolveRowParams {
+  fmt: FormatInfo[];
+  colIndex: number[];
+  rowIdx: number;
+  rowData: unknown[];
+}
 
-export const newSchema = (format: string): Format => {
-  try {
-    const json = JSON.parse(format) as Format;
+interface ResolveRowReturn {
+  row: Row;
+  errs?: RowError[];
+}
 
-    const schema = {};
-    Object.entries(json).map(([key, val]) => {
-      if (typeof val !== 'string') {
-        throw new Error('types must be declared as strings');
-      }
-      schema[key] = val.toLowerCase();
-    });
-
-    return schema;
-  } catch {
-    throw new Error('invalid format');
-  }
-};
-
-export const resolveRow = (
-  schema: Format,
-  row: Row,
-): [Row, RowError[] | null] => {
-  const result: Record<string, unknown> = {};
+export const resolveRow = ({
+  fmt,
+  colIndex,
+  rowIdx,
+  rowData,
+}: ResolveRowParams): ResolveRowReturn => {
+  const result: unknown[] = [];
   const errs: RowError[] = [];
 
-  const info = Object.entries(schema);
-  let col = 1;
-  for (const [key, typ] of info) {
-    const isReq = !key.endsWith('?');
-    const isArray = typ.startsWith('array');
-    const k = isReq ? key : key.slice(0, -1);
-    const t = isArray ? typ.slice(6, -1) : typ;
+  for (let i = 0; i < fmt.length; i++) {
+    const cellValue = rowData[colIndex[i]];
+    const info = fmt[i];
 
-    const v = row.data[k];
-    const parsed = parseTyp(isArray, t as FormatType, v);
+    if (info.isRequired && cellValue === undefined) {
+      errs.push({
+        col: i + 1, // <- starts at 1, idx is 0-based;
+        row: rowIdx + 1, // same here
+      });
+      result.push(null);
+      continue;
+    }
 
-    if (typeof parsed !== t && !isArray && parsed !== null) {
+    const parsed = parseTyp(info.isArray, info.typ, cellValue);
+    if (typeof parsed !== info.typ && !info.isArray && parsed !== null) {
       throw new Error(
-        `parser error: expect: ${t}, have: ${typeof parsed}, raw: ${typeof v}`,
+        `parser error: expect: ${info.typ}, have: ${typeof parsed}, raw: ${typeof cellValue}`,
       );
     }
 
-    if (parsed === null || (v === undefined && isReq)) {
+    if (parsed === null) {
       errs.push({
-        row: row.index,
-        col,
-        reason: v === undefined ? 'missing' : 'invalid',
+        col: i + 1,
+        row: rowIdx + 1,
       });
     }
-
-    result[k] = parsed;
-    col++;
+    result.push(parsed);
   }
 
-  const newRow: Row = {
-    index: row.index,
+  const row: Row = {
+    num: rowIdx + 1,
     data: result,
   };
 
-  return [newRow, errs.length < 1 ? null : errs] as const;
+  return { row, errs };
 };
 
-export const parseTyp = (
+// -- Parsers
+// TODO: support date
+
+const parseTyp = (
   isArray: boolean,
   expect: FormatType,
   v: unknown,
@@ -85,9 +82,9 @@ export const parseTyp = (
   return null;
 };
 
-// -- Parsers
-const parseString = (v: unknown): string => {
-  return String(v);
+const parseString = (v: unknown): string | null => {
+  if (typeof v === 'object' || v === undefined || v === null) return null;
+  return String(v as unknown);
 };
 
 const parseNumber = (v: unknown): number | null => {

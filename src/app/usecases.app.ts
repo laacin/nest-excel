@@ -30,32 +30,55 @@ export class XlsxUseCase {
     return status;
   }
 
-  async uploadTest(
+  uploadTest(
     fileName: string,
-    format: Format,
-  ): Promise<{
+    fmt: Format,
+  ): {
     id: string;
-    valids: Record<string, unknown>[];
+    valids: unknown[];
     errors?: RowError[];
-  }> {
+  } {
     const id = crypto.randomUUID();
-    const valids: Record<string, unknown>[] = [];
+    const valids: unknown[] = [];
     const errors: RowError[] = [];
 
-    await this.XLSX.stream(fileName, 100, (batch, offset) => {
-      for (let i = 0; i < batch.length; i++) {
-        const rowData = batch[i];
-        const [vals, errs] = resolveRow(format, {
-          index: i + offset,
-          data: rowData,
-        });
-        if (errs) {
-          errors.push(...errs);
-        }
-        valids.push(vals.data);
+    const [cols, rows] = this.XLSX.read(fileName);
+    const colIndex = fmt.getColIndex(cols);
+
+    for (let i = 0; i < rows.length; i++) {
+      const { row, errs } = resolveRow({
+        fmt: fmt.getInfo(),
+        colIndex,
+        rowData: rows[i],
+        rowIdx: i,
+      });
+      if (errs) {
+        errors.push(...errs);
       }
-    });
+      valids.push(row.data);
+    }
 
     return { id, valids, errors };
   }
+
+  // getWithHeaders(file: string): XlsxResult {
+  //   return this.XLSX.read(file);
+  // }
+
+  // async queueLogic({
+  //   id,
+  //   format,
+  //   batch,
+  //   chunk,
+  // }: {
+  //   id: string;
+  //   format: Format;
+  //   batch: Record<string, unknown>[];
+  //   chunk: number;
+  // }): Promise<void> {
+  //   for (let i = 0; i < batch.length; i++) {
+  //     const data = batch[i];
+  //     const [row, errs] = resolveRow(format, { data, index: 1 });
+  //   }
+  // }
 }
