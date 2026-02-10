@@ -113,7 +113,11 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
     const promises: Promise<unknown>[] = [];
 
     if (rows?.length) {
-      promises.push(this.row.insertMany(rows.map((row) => ({ jobId, row }))));
+      promises.push(
+        this.row.insertMany(
+          rows.map(({ num, data }) => ({ jobId, num, data })),
+        ),
+      );
     }
 
     if (errs?.length) {

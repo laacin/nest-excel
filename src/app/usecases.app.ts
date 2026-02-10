@@ -76,6 +76,9 @@ export class XlsxUseCase {
       offset += batch.length;
     } while (batch.length === QUEUE_BATCH_SIZE);
 
-    await this.persist.setAsDone(jobId);
+    await Promise.all([
+      this.persist.setAsDone(jobId),
+      this.persist.deleteTmpData(jobId),
+    ]);
   }
 }
