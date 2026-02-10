@@ -3,20 +3,29 @@ export interface Row {
   data: unknown[];
 }
 
-export interface RowError {
+export interface CellError {
   col: number;
   row: number;
 }
 
-export interface DynSchema {
-  id: string;
+export interface UnproccessData {
+  jobId: string;
+  format: string;
+  cols: string[];
+  rawRows: unknown[][];
   status: Status;
-  rows?: Row[];
-  errors?: RowError[];
+}
+
+export interface FinalData {
+  jobId: string;
+  format: string;
+  cols: string[];
+  rows: Row[];
+  errors?: CellError[];
 }
 
 export enum Status {
-  Success,
+  Done,
+  Processing,
   Pending,
-  Error,
 }
