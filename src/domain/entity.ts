@@ -8,15 +8,14 @@ export interface CellError {
   row: number;
 }
 
-export interface UnproccessData {
+export interface RawData {
   jobId: string;
   format: string;
   cols: string[];
-  rawRows: unknown[][];
-  status: Status;
+  rows?: unknown[][];
 }
 
-export interface FinalData {
+export interface Data {
   jobId: string;
   format: string;
   cols: string[];
@@ -25,7 +24,7 @@ export interface FinalData {
 }
 
 export enum Status {
-  Done,
-  Processing,
-  Pending,
+  Done = 'done',
+  Processing = 'processing',
+  Pending = 'pending',
 }
