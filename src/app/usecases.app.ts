@@ -17,7 +17,7 @@ const JOB_PROCESS = 'xlsx.process';
 
 // TODO: handle errors
 @Injectable()
-export class XlsxUseCase implements OnModuleInit {
+export class UseCase implements OnModuleInit {
   constructor(
     @Inject(PERSIST) private readonly persist: PersistLayer,
     @Inject(QUEUE) private readonly msg: QueueService,
@@ -47,6 +47,9 @@ export class XlsxUseCase implements OnModuleInit {
 
   // -- Handlers
   async handleUploadReq(filename: string, format: string): Promise<string> {
+    if (!filename.endsWith('.xlsx')) throw new Error('file must be .xlsx');
+    new Format(format);
+
     const jobId = crypto.randomUUID();
 
     await this.persist.setAsPending(jobId);

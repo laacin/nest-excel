@@ -1,7 +1,14 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
-import { XlsxUseCase } from 'src/app/usecases.app';
-
-const format = '{"name": "String","age": "Number","nums": "Array<Number>"}';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UploadedFile,
+} from '@nestjs/common';
+import { UseCase } from 'src/app/usecases.app';
+import { FileIntr } from './interceptor';
 
 interface PaginationQuery {
   page?: number;
@@ -12,7 +19,26 @@ interface PaginationQuery {
 
 @Controller()
 export class Controllers {
-  constructor(private readonly use: XlsxUseCase) {}
+  constructor(private readonly use: UseCase) {}
+
+  @Post('/upload')
+  @FileIntr()
+  async uploadXlsxFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: Record<string, unknown>,
+  ) {
+    if (!file.filename) return { error: 'missing file' };
+
+    const { format } = body;
+    if (!format) return { error: 'missing format' };
+
+    const response = await this.use.handleUploadReq(
+      file.path,
+      format as string,
+    );
+
+    return { response };
+  }
 
   @Get('/data/:id')
   async getData(@Param('id') id: string, @Query() query: PaginationQuery) {
@@ -24,31 +50,14 @@ export class Controllers {
       rows: { limit, offset },
       errors: { limit, offset },
     });
-    return res;
+
+    return { res };
   }
 
   @Get('/status/:id')
   async getReadWithExtra(@Param('id') id: string) {
     const res = await this.use.handleStatusReq(id);
-    return res;
-  }
-
-  @Get('/upload/big')
-  async getReadBig() {
-    const res = await this.use.handleUploadReq(
-      process.env.TEST_BIG_FILE!,
-      format,
-    );
-    return res;
-  }
-
-  @Get('/upload')
-  async getReadTest() {
-    const res = await this.use.handleUploadReq(
-      process.env.TEST_FILE_WITH_ERRORS!,
-      format,
-    );
-    return res;
+    return { res };
   }
 
   @Get()

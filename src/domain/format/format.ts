@@ -15,17 +15,20 @@ export class Format {
       const json = JSON.parse(input) as Record<string, unknown>;
 
       const fmt: FormatInfo[] = [];
-      Object.entries(json).map(([key, val]) => {
+      Object.entries(json).forEach(([key, val]) => {
         if (typeof val !== 'string') {
           throw new Error('types must be declared as strings');
         }
-        const t = val.toLowerCase();
 
-        const isRequired = !key.endsWith('?');
-        const isArray = t.startsWith('array');
-        const name = isRequired ? key : key.slice(0, -1);
-        const typ = isArray ? t.slice(6, -1) : t;
+        const t = val.trim().toLowerCase();
+        const k = key.trim();
 
+        const isRequired = !k.endsWith('?');
+        const isArray = t.startsWith('array<');
+        const name = k.replace(/\?$/, '');
+        const typ = isArray ? t.replace(/^array<|>$/g, '') : t;
+
+        if (!name) throw new Error('column name cannot be empty');
         if (!isFormatType(typ)) {
           throw new Error(`type ${typ} is not supported`);
         }

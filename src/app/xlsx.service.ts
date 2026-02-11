@@ -4,11 +4,11 @@ import { readFile, stream, utils } from 'xlsx';
 @Injectable()
 export class XlsxService {
   async stream(
-    fileName: string,
+    filename: string,
     batchSize: number,
     onBatch: (batch: unknown[][]) => Promise<void>,
   ) {
-    const wb = readFile(fileName);
+    const wb = readFile(filename);
     const sheet = wb.Sheets[wb.SheetNames[0]];
 
     const data = stream.to_json(sheet, { header: 1 }) as AsyncIterable<
@@ -26,8 +26,8 @@ export class XlsxService {
     }
   }
 
-  read(fileName: string): unknown[][] {
-    const wb = readFile(fileName);
+  read(filename: string): unknown[][] {
+    const wb = readFile(filename);
     const sheet = wb.Sheets[wb.SheetNames[0]];
     return utils.sheet_to_json(sheet, {
       header: 1,

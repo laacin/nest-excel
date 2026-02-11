@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { XlsxService } from './xlsx.service';
-import { XlsxUseCase } from './usecases.app';
 import { InfraModule } from 'src/infra/infra.module';
+import { UseCase } from './usecases.app';
+import { XlsxService } from './xlsx.service';
 
 @Module({
   imports: [InfraModule],
-  providers: [XlsxService, XlsxUseCase],
-  exports: [XlsxUseCase],
+  providers: [XlsxService, UseCase],
+  exports: [UseCase],
 })
 export class AppModule {}

@@ -1,7 +1,8 @@
-import { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { connect, ChannelModel, Channel, ConsumeMessage } from 'amqplib';
 import { QueueService } from 'src/domain/repository';
 
+@Injectable()
 export class RabbitMqConn
   implements OnModuleInit, OnModuleDestroy, QueueService
 {
