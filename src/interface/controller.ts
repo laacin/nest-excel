@@ -11,7 +11,7 @@ interface PaginationQuery {
 }
 
 @Controller()
-export class XlsxController {
+export class Controllers {
   constructor(private readonly use: XlsxUseCase) {}
 
   @Get('/data/:id')
