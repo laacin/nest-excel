@@ -1,11 +1,11 @@
-import { Data, Status, TableInfo, Row, CellError } from './entity';
+import { Data, STATUS, TableInfo, Row, CellError } from './entity';
 
 export const PERSIST = 'PERSIST';
 export interface PersistLayer {
   storeJob(info: TableInfo): Promise<void>;
   addRowsToJob(jobId: string, rows: unknown[][]): Promise<void>; // <- job must exists
 
-  getJobStatus(jobId: string): Promise<Status>;
+  getJobStatus(jobId: string): Promise<STATUS>;
   setAsPending(jobId: string): Promise<void>;
   setAsProcessing(jobId: string): Promise<void>;
   setAsDone(jobId: string): Promise<void>;

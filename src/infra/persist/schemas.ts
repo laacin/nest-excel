@@ -3,12 +3,12 @@ import {
   type CellError,
   type Row,
   type TableInfo,
-  Status,
+  STATUS,
 } from 'src/domain/entity';
 
-export const JobSchema = new Schema<{ jobId: string; status: Status }>({
+export const JobSchema = new Schema<{ jobId: string; status: STATUS }>({
   jobId: { type: String, required: true, index: { unique: true } },
-  status: { type: String, enum: Object.values(Status), required: true },
+  status: { type: String, enum: Object.values(STATUS), required: true },
 });
 
 export const TmpDataSchema = new Schema<{ jobId: string; row: unknown[] }>({

@@ -1,4 +1,4 @@
-import { CellError, Data, Row, Status, TableInfo } from 'src/domain/entity';
+import { CellError, Data, Row, STATUS, TableInfo } from 'src/domain/entity';
 import { connect, model, Model, Mongoose } from 'mongoose';
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { DataFilter, PersistLayer } from 'src/domain/repository';
@@ -13,7 +13,7 @@ import {
 @Injectable()
 export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
   private conn: Mongoose;
-  private job: Model<{ jobId: string; status: Status }>;
+  private job: Model<{ jobId: string; status: STATUS }>;
   private info: Model<TableInfo>;
   private tmp: Model<{ jobId: string; row: unknown[] }>;
   private row: Model<Row & { jobId: string }>;
@@ -56,22 +56,22 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
     );
   }
 
-  async getJobStatus(jobId: string): Promise<Status> {
+  async getJobStatus(jobId: string): Promise<STATUS> {
     const s = await this.job.findOne({ jobId }).lean();
     if (!s) throw new Error("job doesn't exists");
     return s.status;
   }
 
   async setAsPending(jobId: string): Promise<void> {
-    await this.job.insertOne({ jobId, status: Status.Pending });
+    await this.job.insertOne({ jobId, status: STATUS.PENDING });
   }
 
   async setAsProcessing(jobId: string): Promise<void> {
-    await this.job.updateOne({ jobId }, { status: Status.Processing });
+    await this.job.updateOne({ jobId }, { status: STATUS.PROCESSING });
   }
 
   async setAsDone(jobId: string): Promise<void> {
-    await this.job.updateOne({ jobId }, { status: Status.Done });
+    await this.job.updateOne({ jobId }, { status: STATUS.DONE });
   }
 
   async getJobInfo(jobId: string): Promise<TableInfo> {

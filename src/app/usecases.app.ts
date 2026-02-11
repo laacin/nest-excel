@@ -1,7 +1,7 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { XlsxService } from './xlsx.service';
 import { Format, resolveRow } from 'src/domain/format';
-import { CellError, Data, Row, Status } from 'src/domain/entity';
+import { CellError, Data, Row, STATUS } from 'src/domain/entity';
 import { PERSIST, QUEUE } from 'src/domain/repository';
 import type {
   DataFilter,
@@ -58,7 +58,7 @@ export class UseCase implements OnModuleInit {
     return jobId;
   }
 
-  async handleStatusReq(jobId: string): Promise<Status> {
+  async handleStatusReq(jobId: string): Promise<STATUS> {
     return await this.persist.getJobStatus(jobId);
   }
 

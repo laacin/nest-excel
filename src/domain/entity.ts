@@ -20,8 +20,8 @@ export interface Data {
   errors: CellError[];
 }
 
-export enum Status {
-  Done = 'done',
-  Processing = 'processing',
-  Pending = 'pending',
+export enum STATUS {
+  DONE = 'done',
+  PROCESSING = 'processing',
+  PENDING = 'pending',
 }
