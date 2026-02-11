@@ -1,26 +1,78 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { XlsxService } from './xlsx.service';
 import { Format, resolveRow } from 'src/domain/format';
-import { CellError, Row, Status } from 'src/domain/entity';
-import { PERSIST } from 'src/domain/repository';
-import type { PersistLayer } from 'src/domain/repository';
+import { CellError, Data, Row, Status } from 'src/domain/entity';
+import { PERSIST, QUEUE } from 'src/domain/repository';
+import type {
+  DataFilter,
+  PersistLayer,
+  QueueService,
+} from 'src/domain/repository';
 
 const XLSX_READ_BATCH_SIZE = 100;
 const QUEUE_BATCH_SIZE = 100;
 
+const JOB_UPLOAD = 'xlsx.upload';
+const JOB_PROCESS = 'xlsx.process';
+
+// TODO: handle errors
 @Injectable()
-export class XlsxUseCase {
+export class XlsxUseCase implements OnModuleInit {
   constructor(
     @Inject(PERSIST) private readonly persist: PersistLayer,
-    // @Inject(QUEUE) private readonly msg: QueueService,
+    @Inject(QUEUE) private readonly msg: QueueService,
     private readonly XLSX: XlsxService,
   ) {}
 
-  // TODO: handle errors
-  async uploadFile(fileName: string, format: string): Promise<string> {
-    let first = true;
+  async onModuleInit() {
+    await Promise.all([
+      this.msg.newJob(JOB_UPLOAD),
+      this.msg.newJob(JOB_PROCESS),
+    ]);
+
+    const uploadConsumer = this.msg.consumer('xlsx.upload', async (data) => {
+      const { jobId, filename, format } = JSON.parse(data) as Record<
+        string,
+        string
+      >;
+      await this.uploadFile(jobId, filename, format);
+    });
+
+    const procConsumer = this.msg.consumer('xlsx.process', async (data) => {
+      await this.processData(data);
+    });
+
+    await Promise.all([uploadConsumer, procConsumer]);
+  }
+
+  // -- Handlers
+  async handleUploadReq(filename: string, format: string): Promise<string> {
     const jobId = crypto.randomUUID();
 
+    await this.persist.setAsPending(jobId);
+    this.msg.publish(JOB_UPLOAD, JSON.stringify({ jobId, filename, format }));
+
+    return jobId;
+  }
+
+  async handleStatusReq(jobId: string): Promise<Status> {
+    return await this.persist.getJobStatus(jobId);
+  }
+
+  async handleResultReq(
+    jobId: string,
+    filter: DataFilter,
+  ): Promise<Partial<Data>> {
+    return await this.persist.getData(jobId, filter);
+  }
+
+  // -- internal use cases;
+  async uploadFile(
+    jobId: string,
+    fileName: string,
+    format: string,
+  ): Promise<void> {
+    let first = true;
     await this.XLSX.stream(fileName, XLSX_READ_BATCH_SIZE, async (b) => {
       if (first) {
         const [cols, ...rows] = b;
@@ -34,11 +86,7 @@ export class XlsxUseCase {
       }
     });
 
-    return jobId;
-  }
-
-  async checkJobStatus(jobId: string): Promise<Status> {
-    return await this.persist.getJobStatus(jobId);
+    this.msg.publish(JOB_PROCESS, jobId);
   }
 
   async processData(jobId: string): Promise<void> {
