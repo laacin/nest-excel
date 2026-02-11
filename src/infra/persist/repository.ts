@@ -45,10 +45,7 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
   // PersistLayer methods
   // TODO: handle errors
   async storeJob(info: TableInfo): Promise<void> {
-    await Promise.all([
-      this.job.insertOne({ jobId: info.jobId, status: Status.Pending }),
-      this.info.insertOne({ ...info }),
-    ]);
+    await this.info.insertOne({ ...info });
   }
 
   async addRowsToJob(jobId: string, rows: unknown[][]): Promise<void> {
@@ -63,6 +60,10 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
     const s = await this.job.findOne({ jobId }).lean();
     if (!s) throw new Error("job doesn't exists");
     return s.status;
+  }
+
+  async setAsPending(jobId: string): Promise<void> {
+    await this.job.insertOne({ jobId, status: Status.Pending });
   }
 
   async setAsProcessing(jobId: string): Promise<void> {

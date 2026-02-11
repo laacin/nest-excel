@@ -6,6 +6,7 @@ export interface PersistLayer {
   addRowsToJob(jobId: string, rows: unknown[][]): Promise<void>; // <- job must exists
 
   getJobStatus(jobId: string): Promise<Status>;
+  setAsPending(jobId: string): Promise<void>;
   setAsProcessing(jobId: string): Promise<void>;
   setAsDone(jobId: string): Promise<void>;
 
@@ -21,14 +22,15 @@ export interface PersistLayer {
   getData(jobId: string, filter: DataFilter): Promise<Partial<Data>>;
 }
 
-// export const QUEUE = 'QUEUE';
-// export interface QueueService {
-//   send(data: Record<string, unknown>[]): void;
-//   // sendOnBatches(callback: (data: OnConsumeOnBatches) => Promise<void>): void;
-// }
-
 export type DataFilter = {
   [K in keyof Data]?: K extends 'rows' | 'errors'
     ? { limit: number; offset: number }
     : boolean;
 };
+
+export const QUEUE = 'QUEUE';
+export interface QueueService {
+  newJob(job: string): Promise<void>;
+  publish(job: string, data: string): void;
+  consumer(job: string, work: (data: string) => Promise<void>): Promise<void>;
+}
