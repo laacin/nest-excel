@@ -5,12 +5,12 @@ export interface PersistLayer {
   storeJob(info: TableInfo): Promise<void>;
   addRowsToJob(jobId: string, rows: unknown[][]): Promise<void>; // <- job must exists
 
-  getJobStatus(jobId: string): Promise<STATUS>;
+  getJobStatus(jobId: string): Promise<STATUS | undefined>;
   setAsPending(jobId: string): Promise<void>;
   setAsProcessing(jobId: string): Promise<void>;
   setAsDone(jobId: string): Promise<void>;
 
-  getJobInfo(jobId: string): Promise<TableInfo>;
+  getJobInfo(jobId: string): Promise<TableInfo | undefined>;
   getJobData(
     jobId: string,
     limit: number,
@@ -19,7 +19,10 @@ export interface PersistLayer {
   deleteTmpData(jobId: string): Promise<void>;
 
   storeData(jobId: string, rows?: Row[], errs?: CellError[]): Promise<void>;
-  getData(jobId: string, filter: DataFilter): Promise<Partial<Data>>;
+  getData(
+    jobId: string,
+    filter: DataFilter,
+  ): Promise<Partial<Data> | undefined>;
 }
 
 export type DataFilter = {
@@ -32,5 +35,14 @@ export const QUEUE = 'QUEUE';
 export interface QueueService {
   newJob(job: string): Promise<void>;
   publish(job: string, data: string): void;
-  consumer(job: string, work: (data: string) => Promise<void>): Promise<void>;
+  consumer(
+    job: string,
+    work: (data: string) => Promise<void>,
+    onErr?: OnConsumerErr,
+  ): Promise<void>;
+}
+
+export interface OnConsumerErr {
+  requeue?: boolean;
+  callback?: (e: unknown) => Promise<void>;
 }

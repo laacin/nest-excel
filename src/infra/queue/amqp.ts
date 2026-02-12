@@ -1,6 +1,12 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { connect, ChannelModel, Channel, ConsumeMessage } from 'amqplib';
-import { QueueService } from 'src/domain/repository';
+import { OnConsumerErr, QueueService } from 'src/domain/repository';
+import { AMQP_URL } from '../config';
 
 @Injectable()
 export class RabbitMqConn
@@ -9,11 +15,11 @@ export class RabbitMqConn
   private conn: ChannelModel;
   private ch: Channel;
 
-  async onModuleInit() {
-    const conn = await connect('amqp://guest:guest@localhost:5672');
+  constructor(@Inject(AMQP_URL) private readonly url: string) {}
 
+  async onModuleInit() {
+    const conn = await connect(this.url);
     const ch = await conn.createChannel();
-    await ch.assertQueue('xlsx.process', { durable: true });
 
     this.ch = ch;
     this.conn = conn;
@@ -38,22 +44,28 @@ export class RabbitMqConn
   async consumer(
     job: string,
     work: (data: string) => Promise<void>,
+    onErr?: OnConsumerErr,
   ): Promise<void> {
     await this.ch.consume(job, (msg) => {
       if (!msg) return;
 
       const data = msg.content.toString();
-      void this.handleWork(msg, async () => {
-        await work(data);
-      });
+      void this.handleWork(msg, work, data, onErr);
     });
   }
 
-  private async handleWork(
+  private async handleWork<T>(
     msg: ConsumeMessage,
-    work: () => Promise<void>,
+    work: (data: T) => Promise<void>,
+    data: T,
+    onErr?: OnConsumerErr,
   ): Promise<void> {
-    await work();
-    this.ch.ack(msg);
+    try {
+      await work(data);
+      this.ch.ack(msg);
+    } catch (e) {
+      await onErr?.callback?.(e);
+      this.ch.nack(msg, false, onErr?.requeue);
+    }
   }
 }
