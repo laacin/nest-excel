@@ -1,9 +1,17 @@
-import { Module } from '@nestjs/common';
-import { AppModule } from 'src/app/app.module';
+import { DynamicModule, Module } from '@nestjs/common';
 import { Controllers } from './controller';
 
-@Module({
-  imports: [AppModule],
-  controllers: [Controllers],
-})
-export class InterfaceModule {}
+interface InterfaceConfig {
+  dependencies: DynamicModule[];
+}
+
+@Module({})
+export class InterfaceModule {
+  static forRoot(cfg: InterfaceConfig): DynamicModule {
+    return {
+      module: InterfaceModule,
+      imports: cfg.dependencies,
+      controllers: [Controllers],
+    };
+  }
+}
