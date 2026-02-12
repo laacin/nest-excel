@@ -43,9 +43,13 @@ export class UseCase implements OnModuleInit {
         await this.uploadFile(jobId, filename, format);
       });
 
-      const procConsumer = this.msg.consumer(this.PROCESS_JOB, async (data) => {
-        await this.processData(data);
-      });
+      const procConsumer = this.msg.consumer(
+        this.PROCESS_JOB,
+        async (data) => {
+          await this.processData(data);
+        },
+        { fallback: async (e, d) => this.processDataError(e, d) },
+      );
 
       await Promise.all([uploadConsumer, procConsumer]);
     } catch (e) {
@@ -168,5 +172,15 @@ export class UseCase implements OnModuleInit {
     } catch (e) {
       throw e instanceof AppErr ? e : AppErr.unknown(e);
     }
+  }
+
+  async processDataError(e: unknown, data: string): Promise<void> {
+    const setAsErr = this.persist.setAsError(data);
+
+    const err = e instanceof AppErr ? e : AppErr.unknown(e);
+    await Promise.all([
+      setAsErr,
+      this.persist.storeJobError(data, err.message),
+    ]);
   }
 }
