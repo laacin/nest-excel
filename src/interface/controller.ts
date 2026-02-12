@@ -1,19 +1,17 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Query,
-  UploadedFile,
-} from '@nestjs/common';
+import { Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { UseCase } from 'src/app/usecases.app';
-import { FileIntr } from './interceptor';
+import { File } from './interceptor';
+import { type HttpContext, UseContext } from './http.interface';
+import { AppErr } from 'src/domain/errors';
 
+const FILE_DESTINATION = 'tmp';
+
+// TODO: parse no string values
 interface PaginationQuery {
   page?: number;
   limit?: number;
-  info?: boolean;
+  cols?: boolean;
+  error?: boolean;
   errors?: boolean;
 }
 
@@ -22,46 +20,58 @@ export class Controllers {
   constructor(private readonly use: UseCase) {}
 
   @Post('/upload')
-  @FileIntr()
-  async uploadXlsxFile(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() body: Record<string, unknown>,
-  ) {
-    if (!file.filename) return { error: 'missing file' };
+  @File({ field: 'file', dest: FILE_DESTINATION })
+  async uploadFile(@UseContext() { req, res }: HttpContext) {
+    try {
+      if (!req.file) throw AppErr.wrongRequest('missing file');
 
-    const { format } = body;
-    if (!format) return { error: 'missing format' };
+      const { format } = req.body as Record<string, unknown>;
+      if (!format) throw AppErr.wrongRequest('missing format');
 
-    const response = await this.use.handleUploadReq(
-      file.path,
-      format as string,
-    );
+      const response = await this.use.handleUpload(
+        req.file.path,
+        format as string,
+      );
 
-    return { response };
-  }
-
-  @Get('/data/:id')
-  async getData(@Param('id') id: string, @Query() query: PaginationQuery) {
-    const limit = query.limit ?? 100;
-    const offset = query.page ? limit * (query.page + -1) : 0;
-
-    const res = await this.use.handleResultReq(id, {
-      tableInfo: query.info,
-      rows: { limit, offset },
-      errors: { limit, offset },
-    });
-
-    return { res };
+      res.status(201).send({ response });
+    } catch (e) {
+      res.sendErr(e);
+    }
   }
 
   @Get('/status/:id')
-  async getReadWithExtra(@Param('id') id: string) {
-    const res = await this.use.handleStatusReq(id);
-    return { res };
+  async getReadWithExtra(
+    @UseContext() { res }: HttpContext,
+    @Param('id') id: string,
+  ) {
+    try {
+      const response = await this.use.handleStatusRequest(id);
+      res.status(200).send({ response });
+    } catch (e) {
+      res.sendErr(e);
+    }
   }
 
-  @Get()
-  getHello() {
-    return 'hello';
+  @Get('/data/:id')
+  async getData(
+    @UseContext() { res }: HttpContext,
+    @Param('id') id: string,
+    @Query() query: PaginationQuery,
+  ) {
+    try {
+      const limit = query.limit ?? 100;
+      const offset = (query.page ?? 1 - 1) * limit;
+
+      const response = await this.use.handleDataRequest(id, {
+        errors: { limit, offset },
+        rows: { limit, offset },
+        columns: query.cols,
+        error: query.error,
+      });
+
+      res.status(200).send({ response });
+    } catch (e) {
+      res.sendErr(e);
+    }
   }
 }
