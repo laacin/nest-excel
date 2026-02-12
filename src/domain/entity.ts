@@ -10,7 +10,7 @@ export interface CellError {
 
 export interface TableInfo {
   jobId: string;
-  error: string | null;
+  error?: string;
   format: string;
   cols: string[];
 }
