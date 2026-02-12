@@ -1,13 +1,7 @@
 import { XlsxService } from './xlsx.service';
 import { UseCase } from './usecases.app';
 import { DynamicModule, Module } from '@nestjs/common';
-import {
-  AppConfig,
-  PROCESS_BATCH_SIZE,
-  PROCESS_JOB_NAME,
-  READ_BATCH_SIZE,
-  READ_JOB_NAME,
-} from './config.app';
+import { AppConfig, BATCH_SIZE } from './config.app';
 
 @Module({})
 export class AppModule {
@@ -18,10 +12,7 @@ export class AppModule {
       providers: [
         XlsxService,
         UseCase,
-        { provide: READ_BATCH_SIZE, useValue: cfg.readBatchSize },
-        { provide: PROCESS_BATCH_SIZE, useValue: cfg.processBatchSize },
-        { provide: READ_JOB_NAME, useValue: cfg.readJobName },
-        { provide: PROCESS_JOB_NAME, useValue: cfg.processJobName },
+        { provide: BATCH_SIZE, useValue: cfg.batchSize },
       ],
       exports: [UseCase],
     };

@@ -2,25 +2,15 @@ import { Schema } from 'mongoose';
 import {
   type CellError,
   type Row,
-  type TableInfo,
+  type JobInfo,
   STATUS,
 } from 'src/domain/entity';
 
-export const JobSchema = new Schema<{ jobId: string; status: STATUS }>({
+export const JobSchema = new Schema<JobInfo & { columns: string[] }>({
   jobId: { type: String, required: true, index: { unique: true } },
   status: { type: String, enum: Object.values(STATUS), required: true },
-});
-
-export const TmpDataSchema = new Schema<{ jobId: string; row: unknown[] }>({
-  jobId: { type: String, required: true, index: true },
-  row: { type: [Schema.Types.Mixed], default: [] },
-});
-
-export const InfoSchema = new Schema<TableInfo>({
-  jobId: { type: String, required: true, index: { unique: true } },
-  format: { type: String, required: true },
+  columns: { type: [String] },
   error: { type: String },
-  cols: { type: [String], default: [] },
 });
 
 export const RowSchema = new Schema<Row & { jobId: string }>({

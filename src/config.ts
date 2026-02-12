@@ -20,18 +20,12 @@ interface RabbitMQConfig {
 }
 
 interface AppConfig {
-  readBatchSize?: number;
-  processBatchSize?: number;
-  readJobName?: string;
-  processJobName?: string;
+  batchSize?: number;
 }
 
 // defaults
 const DEFAULT_APP: Required<AppConfig> = {
-  readBatchSize: 10000,
-  processBatchSize: 10000,
-  readJobName: 'job.upload',
-  processJobName: 'job.process',
+  batchSize: 10000,
 };
 
 const DEFAULT_MONGO: MongoConfig = {
@@ -57,11 +51,7 @@ interface ResolvedConfig {
 export const resolveConfig = (cfg: Configuration): ResolvedConfig => {
   const appCfg: Required<AppConfig> = cfg.app
     ? {
-        readBatchSize: cfg.app.readBatchSize ?? DEFAULT_APP.readBatchSize,
-        processBatchSize:
-          cfg.app.processBatchSize ?? DEFAULT_APP.processBatchSize,
-        readJobName: cfg.app.readJobName ?? DEFAULT_APP.readJobName,
-        processJobName: cfg.app.processJobName ?? DEFAULT_APP.processJobName,
+        batchSize: cfg.app.batchSize ?? DEFAULT_APP.batchSize,
       }
     : DEFAULT_APP;
 

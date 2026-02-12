@@ -1,4 +1,4 @@
-import { CellError, Data, Row, STATUS, TableInfo } from 'src/domain/entity';
+import { CellError, Data, JobInfo, Row, STATUS } from 'src/domain/entity';
 import { connect, model, Model, Mongoose } from 'mongoose';
 import {
   Inject,
@@ -6,22 +6,16 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { DataFilter, PersistLayer } from 'src/domain/repository';
-import {
-  JobSchema,
-  TmpDataSchema,
-  InfoSchema,
-  RowSchema,
-  ErrSchema,
-} from './schemas';
+import { DataFilter, PersistRepository } from 'src/domain/repository';
+import { JobSchema, RowSchema, ErrSchema } from './schemas';
 import { MONGO_URL } from '../config';
 
 @Injectable()
-export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
+export class MongoConn
+  implements PersistRepository, OnModuleInit, OnModuleDestroy
+{
   private conn: Mongoose;
-  private job: Model<{ jobId: string; status: STATUS }>;
-  private info: Model<TableInfo>;
-  private tmp: Model<{ jobId: string; row: unknown[] }>;
+  private job: Model<JobInfo & { columns: string[] }>;
   private row: Model<Row & { jobId: string }>;
   private err: Model<CellError & { jobId: string }>;
 
@@ -31,15 +25,11 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     const conn = await connect(this.url);
     const job = model('job', JobSchema);
-    const info = model('info', InfoSchema);
-    const tmp = model('tmp', TmpDataSchema);
     const row = model('row', RowSchema);
     const err = model('err', ErrSchema);
 
     this.conn = conn;
     this.job = job;
-    this.info = info;
-    this.tmp = tmp;
     this.row = row;
     this.err = err;
   }
@@ -49,95 +39,66 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
   }
 
   // PersistLayer methods
-  async storeJob(info: TableInfo): Promise<void> {
-    await this.info.insertOne({ ...info });
+  async storeJob(info: Omit<JobInfo, 'error' | 'status'>): Promise<void> {
+    await this.job.create({ status: STATUS.PENDING, ...info });
   }
 
-  async addRowsToJob(jobId: string, rows: unknown[][]): Promise<void> {
-    await this.tmp.insertMany(
-      rows.map((row) => {
-        return { jobId, row };
-      }),
-    );
-  }
-
-  async getJobStatus(jobId: string): Promise<STATUS | undefined> {
-    const s = await this.job.findOne({ jobId }).lean();
-    if (!s) return;
-    return s.status;
-  }
-
-  async setAsPending(jobId: string): Promise<void> {
-    await this.job.insertOne({ jobId, status: STATUS.PENDING });
-  }
-
-  async setAsProcessing(jobId: string): Promise<void> {
-    await this.job.updateOne({ jobId }, { status: STATUS.PROCESSING });
-  }
-
-  async setAsDone(jobId: string): Promise<void> {
-    await this.job.updateOne({ jobId }, { status: STATUS.DONE });
-  }
-
-  async setAsError(jobId: string): Promise<void> {
-    await this.job.updateOne({ jobId }, { status: STATUS.ERROR });
-  }
-
-  async storeJobError(jobId: string, error: string): Promise<void> {
-    await this.info.updateOne({ jobId }, { error });
-  }
-
-  async getJobInfo(jobId: string): Promise<TableInfo | undefined> {
-    const result = await this.info.findOne({ jobId }).lean();
-    if (!result) return;
+  async getJob(jobId: string): Promise<JobInfo | undefined> {
+    const r = await this.job.findOne({ jobId }).lean();
+    if (!r) return;
 
     return {
-      jobId: result.jobId,
-      error: result.error,
-      format: result.format,
-      cols: result.cols,
+      jobId: r.jobId,
+      status: r.status,
+      error: r.error,
     };
   }
 
-  async getJobData(
-    jobId: string,
-    limit: number,
-    offset: number,
-  ): Promise<unknown[][]> {
-    const data = await this.tmp
-      .find({ jobId }, { row: true })
-      .sort({ _id: 1 })
-      .skip(offset)
-      .limit(limit)
-      .lean();
-
-    return data.length ? data.map((x) => x.row) : [];
+  async setAsProcessing(jobId: string): Promise<void> {
+    await this.job.updateOne(
+      { jobId },
+      { $set: { status: STATUS.PROCESSING } },
+    );
   }
 
-  async deleteTmpData(jobId: string): Promise<void> {
-    await this.tmp.deleteMany({ jobId });
+  async setAsDone(jobId: string): Promise<void> {
+    await this.job.updateOne({ jobId }, { $set: { status: STATUS.DONE } });
+  }
+
+  async setAsError(jobId: string, reason?: string): Promise<void> {
+    const rs = reason ? reason : 'unknown reason';
+    await this.job.updateOne(
+      { jobId },
+      { $set: { status: STATUS.ERROR, error: rs } },
+    );
   }
 
   async storeData(
     jobId: string,
-    rows?: Row[],
-    errs?: CellError[],
+    data: Partial<Data>,
+    exists?: boolean,
   ): Promise<void> {
-    if (!rows && !errs) return;
-
     const promises: Promise<unknown>[] = [];
 
-    if (rows?.length) {
+    if (!exists && data.columns?.length) {
+      promises.push(
+        this.job.updateOne({ jobId }, { $set: { columns: data.columns } }),
+      );
+    }
+
+    if (data.rows?.length) {
       promises.push(
         this.row.insertMany(
-          rows.map(({ num, data }) => ({ jobId, num, data })),
+          data.rows.map(({ num, data }) => ({ jobId, num, data })),
         ),
       );
     }
 
-    if (errs?.length) {
+    if (data.errors?.length) {
       promises.push(
-        this.err.insertMany(errs.map(({ col, row }) => ({ jobId, col, row }))),
+        this.err.insertMany(
+          data.errors.map(({ col, row }) => ({ jobId, col, row })),
+        ),
       );
     }
 
@@ -147,21 +108,27 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
   async getData(
     jobId: string,
     filter: DataFilter,
-  ): Promise<Partial<Data> | undefined> {
-    const result: Partial<Data> = {};
+  ): Promise<Partial<Data & JobInfo> | undefined> {
+    const result: Partial<Data & JobInfo> = {};
 
-    if (filter.tableInfo) {
-      const r = await this.info.findOne({ jobId }).lean();
-      if (!r) return;
+    const info = await this.job.findOne({ jobId }).lean();
+    if (!info) return;
 
-      result.tableInfo = {
-        jobId: r.jobId,
-        error: r.error,
-        format: r.format,
-        cols: r.cols,
-      };
+    if (filter.columns) {
+      result.columns = info.columns;
     }
-    if (result.errors) return result;
+
+    if (filter.error) {
+      result.error = info.error;
+    }
+
+    if (filter.jobId) {
+      result.jobId = info.jobId;
+    }
+
+    if (filter.status) {
+      result.status = info.status;
+    }
 
     if (filter.rows) {
       const r = await this.row
@@ -170,24 +137,17 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
         .limit(filter.rows.limit)
         .lean();
 
-      result.rows = r
-        ? r.map(({ num, data }) => {
-            return { num, data };
-          })
-        : [];
+      result.rows = r?.map(({ num, data }) => ({ num, data })) ?? [];
     }
 
     if (filter.errors) {
       const r = await this.err
         .find({ jobId }, { jobId: false })
         .skip(filter.errors.offset)
-        .limit(filter.errors.limit);
+        .limit(filter.errors.limit)
+        .lean();
 
-      result.errors = r
-        ? r.map(({ row, col }) => {
-            return { row, col };
-          })
-        : [];
+      result.errors = r?.map(({ row, col }) => ({ row, col })) ?? [];
     }
 
     return result;

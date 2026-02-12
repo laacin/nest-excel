@@ -1,46 +1,39 @@
-import { Data, STATUS, TableInfo, Row, CellError } from './entity';
+import { Data, JobInfo } from './entity';
 
 export const PERSIST = 'PERSIST';
-export interface PersistLayer {
-  storeJob(info: TableInfo): Promise<void>;
-  addRowsToJob(jobId: string, rows: unknown[][]): Promise<void>; // <- job must exists
+export interface PersistRepository {
+  storeJob(info: Omit<JobInfo, 'error' | 'status'>): Promise<void>;
+  getJob(jobId: string): Promise<JobInfo | undefined>;
 
-  getJobStatus(jobId: string): Promise<STATUS | undefined>;
-  setAsPending(jobId: string): Promise<void>;
   setAsProcessing(jobId: string): Promise<void>;
-  setAsError(jobId: string): Promise<void>;
   setAsDone(jobId: string): Promise<void>;
+  setAsError(jobId: string, reason?: string): Promise<void>;
 
-  storeJobError(jobId: string, error: string): Promise<void>;
-  getJobInfo(jobId: string): Promise<TableInfo | undefined>;
-  getJobData(
+  storeData(
     jobId: string,
-    limit: number,
-    offset: number,
-  ): Promise<unknown[][]>;
-  deleteTmpData(jobId: string): Promise<void>;
-
-  storeData(jobId: string, rows?: Row[], errs?: CellError[]): Promise<void>;
+    data: Partial<Data>,
+    exists?: boolean,
+  ): Promise<void>;
   getData(
     jobId: string,
     filter: DataFilter,
-  ): Promise<Partial<Data> | undefined>;
+  ): Promise<Partial<Data & JobInfo> | undefined>;
 }
 
 export type DataFilter = {
-  [K in keyof Data]?: K extends 'rows' | 'errors'
+  [K in keyof Data | keyof JobInfo]?: K extends 'rows' | 'errors'
     ? { limit: number; offset: number }
     : boolean;
 };
 
 export const QUEUE = 'QUEUE';
-export interface QueueService {
+export interface QueueService<T> {
   newJob(job: string): Promise<void>;
-  publish(job: string, data: string): void;
+  publish(job: string, data: T): void;
   consumer(
     job: string,
-    work: (data: string) => Promise<void>,
-    onErr?: OnConsumerErr<string>,
+    work: (data: T) => Promise<void>,
+    onErr?: OnConsumerErr<T>,
   ): Promise<void>;
 }
 

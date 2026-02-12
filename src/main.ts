@@ -5,4 +5,4 @@ async function bootstrap() {
   const app = await NestFactory.create(MainModule.forRoot({}));
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+bootstrap().catch((e) => console.error(e));
