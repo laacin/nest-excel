@@ -39,8 +39,8 @@ export class MongoConn
   }
 
   // PersistLayer methods
-  async storeJob(info: Omit<JobInfo, 'error' | 'status'>): Promise<void> {
-    await this.job.create({ status: STATUS.PENDING, ...info });
+  async storeJob(jobId: string): Promise<void> {
+    await this.job.create({ jobId, status: STATUS.PENDING });
   }
 
   async getJob(jobId: string): Promise<JobInfo | undefined> {

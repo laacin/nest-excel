@@ -2,7 +2,7 @@ import { Data, JobInfo } from './entity';
 
 export const PERSIST = 'PERSIST';
 export interface PersistRepository {
-  storeJob(info: Omit<JobInfo, 'error' | 'status'>): Promise<void>;
+  storeJob(jobId: string): Promise<void>;
   getJob(jobId: string): Promise<JobInfo | undefined>;
 
   setAsProcessing(jobId: string): Promise<void>;

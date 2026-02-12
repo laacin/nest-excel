@@ -45,7 +45,7 @@ export class UseCase implements OnModuleInit {
       new Format(format); // validate format
       const jobId = crypto.randomUUID();
 
-      await this.persist.storeJob({ jobId });
+      await this.persist.storeJob(jobId);
       this.msg.publish(JOB_QUEUE, { jobId, filename, format });
 
       return jobId;
