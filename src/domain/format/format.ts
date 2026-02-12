@@ -1,3 +1,5 @@
+import { AppErr, FmtErr, XlsxError } from '../errors';
+
 export type FormatType = 'string' | 'number' | 'boolean' | 'date';
 
 export interface FormatInfo {
@@ -17,7 +19,7 @@ export class Format {
       const fmt: FormatInfo[] = [];
       Object.entries(json).forEach(([key, val]) => {
         if (typeof val !== 'string') {
-          throw new Error('types must be declared as strings');
+          throw FmtErr.noStringType();
         }
 
         const t = val.trim().toLowerCase();
@@ -28,9 +30,9 @@ export class Format {
         const name = k.replace(/\?$/, '');
         const typ = isArray ? t.replace(/^array<|>$/g, '') : t;
 
-        if (!name) throw new Error('column name cannot be empty');
+        if (!name) throw FmtErr.emptyColumn();
         if (!isFormatType(typ)) {
-          throw new Error(`type ${typ} is not supported`);
+          throw FmtErr.invalidType(typ);
         }
 
         fmt.push({ name, isRequired, isArray, typ });
@@ -38,7 +40,7 @@ export class Format {
 
       this.info = fmt;
     } catch (e) {
-      throw e instanceof Error ? e : new Error('invalid format');
+      throw e instanceof AppErr ? e : FmtErr.invalidFormat();
     }
   }
 
@@ -48,9 +50,7 @@ export class Format {
     this.info.forEach((info) => {
       const idx = cols.indexOf(info.name);
       if (idx < 0 && info.isRequired) {
-        throw new Error(
-          `table does not contain the required column: ${info.name}`,
-        );
+        throw XlsxError.missingRequiredCol(info.name);
       }
       index.push(idx);
     });

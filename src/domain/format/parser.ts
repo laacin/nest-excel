@@ -1,5 +1,6 @@
 import { FormatInfo, FormatType } from './format';
 import { Row, CellError } from '../entity';
+import { AppErr } from '../errors';
 
 interface ResolveRowParams {
   fmt: FormatInfo[];
@@ -37,7 +38,7 @@ export const resolveRow = ({
 
     const parsed = parseTyp(info.isArray, info.typ, cellValue);
     if (typeof parsed !== info.typ && !info.isArray && parsed !== null) {
-      throw new Error(
+      throw AppErr.internal(
         `parser error: expect: ${info.typ}, have: ${typeof parsed}, raw: ${typeof cellValue}`,
       );
     }
