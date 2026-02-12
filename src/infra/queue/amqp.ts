@@ -64,8 +64,11 @@ export class RabbitMqConn
       await work(data);
       this.ch.ack(msg);
     } catch (e) {
-      await onErr?.fallback?.(e, data);
-      this.ch.nack(msg, false, onErr?.requeue);
+      try {
+        await onErr?.fallback?.(e, data);
+      } finally {
+        this.ch.nack(msg, false, onErr?.requeue ?? false);
+      }
     }
   }
 }
