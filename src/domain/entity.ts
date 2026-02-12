@@ -10,6 +10,7 @@ export interface CellError {
 
 export interface TableInfo {
   jobId: string;
+  error: string | null;
   format: string;
   cols: string[];
 }
@@ -24,4 +25,5 @@ export enum STATUS {
   DONE = 'done',
   PROCESSING = 'processing',
   PENDING = 'pending',
+  ERROR = 'error',
 }

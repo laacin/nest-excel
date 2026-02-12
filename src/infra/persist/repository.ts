@@ -79,12 +79,21 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
     await this.job.updateOne({ jobId }, { status: STATUS.DONE });
   }
 
+  async setAsError(jobId: string): Promise<void> {
+    await this.job.updateOne({ jobId }, { status: STATUS.ERROR });
+  }
+
+  async storeJobError(jobId: string, error: string): Promise<void> {
+    await this.info.updateOne({ jobId }, { error });
+  }
+
   async getJobInfo(jobId: string): Promise<TableInfo | undefined> {
     const result = await this.info.findOne({ jobId }).lean();
     if (!result) return;
 
     return {
       jobId: result.jobId,
+      error: result.error,
       format: result.format,
       cols: result.cols,
     };
@@ -147,10 +156,12 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
 
       result.tableInfo = {
         jobId: r.jobId,
+        error: r.error,
         format: r.format,
         cols: r.cols,
       };
     }
+    if (result.errors) return result;
 
     if (filter.rows) {
       const r = await this.row

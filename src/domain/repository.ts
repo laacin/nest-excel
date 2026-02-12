@@ -11,6 +11,7 @@ export interface PersistLayer {
   setAsError(jobId: string): Promise<void>;
   setAsDone(jobId: string): Promise<void>;
 
+  storeJobError(jobId: string, error: string): Promise<void>;
   getJobInfo(jobId: string): Promise<TableInfo | undefined>;
   getJobData(
     jobId: string,
@@ -20,7 +21,6 @@ export interface PersistLayer {
   deleteTmpData(jobId: string): Promise<void>;
 
   storeData(jobId: string, rows?: Row[], errs?: CellError[]): Promise<void>;
-  storeDataAsErr(jobId: string, error: string): Promise<void>;
   getData(
     jobId: string,
     filter: DataFilter,

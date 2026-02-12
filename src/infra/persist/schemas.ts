@@ -19,6 +19,7 @@ export const TmpDataSchema = new Schema<{ jobId: string; row: unknown[] }>({
 export const InfoSchema = new Schema<TableInfo>({
   jobId: { type: String, required: true, index: { unique: true } },
   format: { type: String, required: true },
+  error: { type: String },
   cols: { type: [String], default: [] },
 });
 
