@@ -44,7 +44,7 @@ export class RabbitMqConn
   async consumer(
     job: string,
     work: (data: string) => Promise<void>,
-    onErr?: OnConsumerErr,
+    onErr?: OnConsumerErr<string>,
   ): Promise<void> {
     await this.ch.consume(job, (msg) => {
       if (!msg) return;
@@ -58,13 +58,13 @@ export class RabbitMqConn
     msg: ConsumeMessage,
     work: (data: T) => Promise<void>,
     data: T,
-    onErr?: OnConsumerErr,
+    onErr?: OnConsumerErr<T>,
   ): Promise<void> {
     try {
       await work(data);
       this.ch.ack(msg);
     } catch (e) {
-      await onErr?.callback?.(e);
+      await onErr?.fallback?.(e, data);
       this.ch.nack(msg, false, onErr?.requeue);
     }
   }

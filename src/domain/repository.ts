@@ -8,6 +8,7 @@ export interface PersistLayer {
   getJobStatus(jobId: string): Promise<STATUS | undefined>;
   setAsPending(jobId: string): Promise<void>;
   setAsProcessing(jobId: string): Promise<void>;
+  setAsError(jobId: string): Promise<void>;
   setAsDone(jobId: string): Promise<void>;
 
   getJobInfo(jobId: string): Promise<TableInfo | undefined>;
@@ -19,6 +20,7 @@ export interface PersistLayer {
   deleteTmpData(jobId: string): Promise<void>;
 
   storeData(jobId: string, rows?: Row[], errs?: CellError[]): Promise<void>;
+  storeDataAsErr(jobId: string, error: string): Promise<void>;
   getData(
     jobId: string,
     filter: DataFilter,
@@ -38,11 +40,11 @@ export interface QueueService {
   consumer(
     job: string,
     work: (data: string) => Promise<void>,
-    onErr?: OnConsumerErr,
+    onErr?: OnConsumerErr<string>,
   ): Promise<void>;
 }
 
-export interface OnConsumerErr {
+export interface OnConsumerErr<T> {
   requeue?: boolean;
-  callback?: (e: unknown) => Promise<void>;
+  fallback?: (e: unknown, data: T) => Promise<void>;
 }
