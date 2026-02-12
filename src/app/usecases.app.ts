@@ -14,7 +14,7 @@ import {
   READ_BATCH_SIZE,
   READ_JOB_NAME,
 } from './config.app';
-import { AppErr, PersistErr, XlsxError } from 'src/domain/errors';
+import { AppErr, PersistErr, XlsxErr } from 'src/domain/errors';
 
 @Injectable()
 export class UseCase implements OnModuleInit {
@@ -56,7 +56,7 @@ export class UseCase implements OnModuleInit {
   // -- Handlers
   async handleUploadReq(filename: string, format: string): Promise<string> {
     try {
-      if (!filename.endsWith('.xlsx')) throw XlsxError.noXlsxFile();
+      if (!filename.endsWith('.xlsx')) throw XlsxErr.noXlsxFile();
       new Format(format);
 
       const jobId = crypto.randomUUID();
@@ -171,6 +171,7 @@ export class UseCase implements OnModuleInit {
   }
 
   async processDataError(e: unknown, data: string): Promise<void> {
+    console.error(e);
     const setAsErr = this.persist.setAsError(data);
 
     const err = e instanceof AppErr ? e : AppErr.unknown(e);

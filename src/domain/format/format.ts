@@ -1,4 +1,4 @@
-import { AppErr, FmtErr, XlsxError } from '../errors';
+import { AppErr, FmtErr, XlsxErr } from '../errors';
 
 export type FormatType = 'string' | 'number' | 'boolean' | 'date';
 
@@ -50,7 +50,7 @@ export class Format {
     this.info.forEach((info) => {
       const idx = cols.indexOf(info.name);
       if (idx < 0 && info.isRequired) {
-        throw XlsxError.missingRequiredCol(info.name);
+        throw XlsxErr.missingRequiredCol(info.name);
       }
       index.push(idx);
     });
