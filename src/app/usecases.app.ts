@@ -29,32 +29,28 @@ export class UseCase implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    try {
-      await Promise.all([
-        this.msg.newJob(this.READ_JOB),
-        this.msg.newJob(this.PROCESS_JOB),
-      ]);
+    await Promise.all([
+      this.msg.newJob(this.READ_JOB),
+      this.msg.newJob(this.PROCESS_JOB),
+    ]);
 
-      const uploadConsumer = this.msg.consumer(this.READ_JOB, async (data) => {
-        const { jobId, filename, format } = JSON.parse(data) as Record<
-          string,
-          string
-        >;
-        await this.uploadFile(jobId, filename, format);
-      });
+    const uploadConsumer = this.msg.consumer(this.READ_JOB, async (data) => {
+      const { jobId, filename, format } = JSON.parse(data) as Record<
+        string,
+        string
+      >;
+      await this.uploadFile(jobId, filename, format);
+    });
 
-      const procConsumer = this.msg.consumer(
-        this.PROCESS_JOB,
-        async (data) => {
-          await this.processData(data);
-        },
-        { fallback: async (e, d) => this.processDataError(e, d) },
-      );
+    const procConsumer = this.msg.consumer(
+      this.PROCESS_JOB,
+      async (data) => {
+        await this.processData(data);
+      },
+      { fallback: async (e, d) => this.processDataError(e, d) },
+    );
 
-      await Promise.all([uploadConsumer, procConsumer]);
-    } catch (e) {
-      throw e instanceof AppErr ? e : AppErr.unknown(e);
-    }
+    await Promise.all([uploadConsumer, procConsumer]);
   }
 
   // -- Handlers
@@ -103,12 +99,12 @@ export class UseCase implements OnModuleInit {
   // -- internal use cases;
   async uploadFile(
     jobId: string,
-    fileName: string,
+    filename: string,
     format: string,
   ): Promise<void> {
     try {
       let first = true;
-      await this.XLSX.stream(fileName, this.READ_BZ, async (b) => {
+      await this.XLSX.stream(filename, this.READ_BZ, async (b) => {
         if (first) {
           const [cols, ...rows] = b;
           await Promise.all([
@@ -121,7 +117,7 @@ export class UseCase implements OnModuleInit {
         }
       });
 
-      this.msg.publish(this.READ_JOB, jobId);
+      this.msg.publish(this.PROCESS_JOB, jobId);
     } catch (e) {
       throw e instanceof AppErr ? e : AppErr.unknown(e);
     }
