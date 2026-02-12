@@ -1,6 +1,11 @@
 import { CellError, Data, Row, STATUS, TableInfo } from 'src/domain/entity';
 import { connect, model, Model, Mongoose } from 'mongoose';
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { DataFilter, PersistLayer } from 'src/domain/repository';
 import {
   JobSchema,
@@ -9,6 +14,7 @@ import {
   RowSchema,
   ErrSchema,
 } from './schemas';
+import { MONGO_URL } from '../config';
 
 @Injectable()
 export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
@@ -19,11 +25,11 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
   private row: Model<Row & { jobId: string }>;
   private err: Model<CellError & { jobId: string }>;
 
+  constructor(@Inject(MONGO_URL) private readonly url: string) {}
+
   // Init nestjs methods
   async onModuleInit() {
-    const conn = await connect(
-      process.env.MONGO_URL ?? 'mongodb://localhost:27017/mydb',
-    );
+    const conn = await connect(this.url);
     const job = model('job', JobSchema);
     const info = model('info', InfoSchema);
     const tmp = model('tmp', TmpDataSchema);
@@ -43,7 +49,6 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
   }
 
   // PersistLayer methods
-  // TODO: handle errors
   async storeJob(info: TableInfo): Promise<void> {
     await this.info.insertOne({ ...info });
   }
@@ -56,9 +61,9 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
     );
   }
 
-  async getJobStatus(jobId: string): Promise<STATUS> {
+  async getJobStatus(jobId: string): Promise<STATUS | undefined> {
     const s = await this.job.findOne({ jobId }).lean();
-    if (!s) throw new Error("job doesn't exists");
+    if (!s) return;
     return s.status;
   }
 
@@ -74,9 +79,9 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
     await this.job.updateOne({ jobId }, { status: STATUS.DONE });
   }
 
-  async getJobInfo(jobId: string): Promise<TableInfo> {
+  async getJobInfo(jobId: string): Promise<TableInfo | undefined> {
     const result = await this.info.findOne({ jobId }).lean();
-    if (!result) throw new Error("job doesn't exists");
+    if (!result) return;
 
     return {
       jobId: result.jobId,
@@ -130,12 +135,16 @@ export class MongoConn implements PersistLayer, OnModuleInit, OnModuleDestroy {
     await Promise.all(promises);
   }
 
-  async getData(jobId: string, filter: DataFilter): Promise<Partial<Data>> {
+  async getData(
+    jobId: string,
+    filter: DataFilter,
+  ): Promise<Partial<Data> | undefined> {
     const result: Partial<Data> = {};
 
     if (filter.tableInfo) {
       const r = await this.info.findOne({ jobId }).lean();
-      if (!r) throw new Error("job doesn't exists");
+      if (!r) return;
+
       result.tableInfo = {
         jobId: r.jobId,
         format: r.format,

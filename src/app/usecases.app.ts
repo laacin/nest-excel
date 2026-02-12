@@ -8,65 +8,92 @@ import type {
   PersistLayer,
   QueueService,
 } from 'src/domain/repository';
+import {
+  PROCESS_BATCH_SIZE,
+  PROCESS_JOB_NAME,
+  READ_BATCH_SIZE,
+  READ_JOB_NAME,
+} from './config.app';
+import { AppErr, PersistErr, XlsxError } from 'src/domain/errors';
 
-const XLSX_READ_BATCH_SIZE = 100;
-const QUEUE_BATCH_SIZE = 100;
-
-const JOB_UPLOAD = 'xlsx.upload';
-const JOB_PROCESS = 'xlsx.process';
-
-// TODO: handle errors
 @Injectable()
 export class UseCase implements OnModuleInit {
   constructor(
     @Inject(PERSIST) private readonly persist: PersistLayer,
     @Inject(QUEUE) private readonly msg: QueueService,
+    @Inject(READ_BATCH_SIZE) private readonly READ_BZ: number,
+    @Inject(PROCESS_BATCH_SIZE) private readonly PROCESS_BZ: number,
+    @Inject(READ_JOB_NAME) private readonly READ_JOB: string,
+    @Inject(PROCESS_JOB_NAME) private readonly PROCESS_JOB: string,
     private readonly XLSX: XlsxService,
   ) {}
 
   async onModuleInit() {
-    await Promise.all([
-      this.msg.newJob(JOB_UPLOAD),
-      this.msg.newJob(JOB_PROCESS),
-    ]);
+    try {
+      await Promise.all([
+        this.msg.newJob(this.READ_JOB),
+        this.msg.newJob(this.PROCESS_JOB),
+      ]);
 
-    const uploadConsumer = this.msg.consumer('xlsx.upload', async (data) => {
-      const { jobId, filename, format } = JSON.parse(data) as Record<
-        string,
-        string
-      >;
-      await this.uploadFile(jobId, filename, format);
-    });
+      const uploadConsumer = this.msg.consumer(this.READ_JOB, async (data) => {
+        const { jobId, filename, format } = JSON.parse(data) as Record<
+          string,
+          string
+        >;
+        await this.uploadFile(jobId, filename, format);
+      });
 
-    const procConsumer = this.msg.consumer('xlsx.process', async (data) => {
-      await this.processData(data);
-    });
+      const procConsumer = this.msg.consumer(this.PROCESS_JOB, async (data) => {
+        await this.processData(data);
+      });
 
-    await Promise.all([uploadConsumer, procConsumer]);
+      await Promise.all([uploadConsumer, procConsumer]);
+    } catch (e) {
+      throw e instanceof AppErr ? e : AppErr.unknown(e);
+    }
   }
 
   // -- Handlers
   async handleUploadReq(filename: string, format: string): Promise<string> {
-    if (!filename.endsWith('.xlsx')) throw new Error('file must be .xlsx');
-    new Format(format);
+    try {
+      if (!filename.endsWith('.xlsx')) throw XlsxError.noXlsxFile();
+      new Format(format);
 
-    const jobId = crypto.randomUUID();
+      const jobId = crypto.randomUUID();
 
-    await this.persist.setAsPending(jobId);
-    this.msg.publish(JOB_UPLOAD, JSON.stringify({ jobId, filename, format }));
+      await this.persist.setAsPending(jobId);
+      this.msg.publish(
+        this.READ_JOB,
+        JSON.stringify({ jobId, filename, format }),
+      );
 
-    return jobId;
+      return jobId;
+    } catch (e) {
+      throw e instanceof AppErr ? e : AppErr.unknown(e);
+    }
   }
 
   async handleStatusReq(jobId: string): Promise<STATUS> {
-    return await this.persist.getJobStatus(jobId);
+    try {
+      const status = await this.persist.getJobStatus(jobId);
+      if (!status) throw PersistErr.jobNotFound();
+      return status;
+    } catch (e) {
+      throw e instanceof AppErr ? e : AppErr.unknown(e);
+    }
   }
 
   async handleResultReq(
     jobId: string,
     filter: DataFilter,
   ): Promise<Partial<Data>> {
-    return await this.persist.getData(jobId, filter);
+    try {
+      const data = await this.persist.getData(jobId, filter);
+      if (!data) throw PersistErr.jobNotFound();
+      return data;
+    } catch (e) {
+      throw e instanceof AppErr ? e : AppErr.unknown(e);
+    }
   }
 
   // -- internal use cases;
@@ -75,61 +102,71 @@ export class UseCase implements OnModuleInit {
     fileName: string,
     format: string,
   ): Promise<void> {
-    let first = true;
-    await this.XLSX.stream(fileName, XLSX_READ_BATCH_SIZE, async (b) => {
-      if (first) {
-        const [cols, ...rows] = b;
-        await Promise.all([
-          this.persist.storeJob({ jobId, format, cols: cols as string[] }),
-          this.persist.addRowsToJob(jobId, rows),
-        ]);
-        first = false;
-      } else {
-        await this.persist.addRowsToJob(jobId, b);
-      }
-    });
+    try {
+      let first = true;
+      await this.XLSX.stream(fileName, this.READ_BZ, async (b) => {
+        if (first) {
+          const [cols, ...rows] = b;
+          await Promise.all([
+            this.persist.storeJob({ jobId, format, cols: cols as string[] }),
+            this.persist.addRowsToJob(jobId, rows),
+          ]);
+          first = false;
+        } else {
+          await this.persist.addRowsToJob(jobId, b);
+        }
+      });
 
-    this.msg.publish(JOB_PROCESS, jobId);
+      this.msg.publish(this.READ_JOB, jobId);
+    } catch (e) {
+      throw e instanceof AppErr ? e : AppErr.unknown(e);
+    }
   }
 
   async processData(jobId: string): Promise<void> {
-    await this.persist.setAsProcessing(jobId);
+    try {
+      await this.persist.setAsProcessing(jobId);
 
-    const jobInfo = await this.persist.getJobInfo(jobId);
-    const fmt = new Format(jobInfo.format);
-    const colIndex = fmt.getColIndex(jobInfo.cols);
+      const jobInfo = await this.persist.getJobInfo(jobId);
+      if (!jobInfo) throw PersistErr.jobNotFound();
 
-    let offset = 0;
-    let batch: unknown[][] = [];
-    do {
-      batch = await this.persist.getJobData(jobId, QUEUE_BATCH_SIZE, offset);
-      if (!batch.length) break;
+      const fmt = new Format(jobInfo.format);
+      const colIndex = fmt.getColIndex(jobInfo.cols);
 
-      let rows: Row[] = [];
-      let errors: CellError[] = [];
+      let offset = 0;
+      let batch: unknown[][] = [];
+      do {
+        batch = await this.persist.getJobData(jobId, this.PROCESS_BZ, offset);
+        if (!batch.length) break;
 
-      for (let i = 0; i < batch.length; i++) {
-        const { row, errs } = resolveRow({
-          fmt: fmt.getInfo(),
-          colIndex,
-          rowData: batch[i],
-          rowIdx: i + offset,
-        });
-        if (errs) {
-          errors.push(...errs);
+        let rows: Row[] = [];
+        let errors: CellError[] = [];
+
+        for (let i = 0; i < batch.length; i++) {
+          const { row, errs } = resolveRow({
+            fmt: fmt.getInfo(),
+            colIndex,
+            rowData: batch[i],
+            rowIdx: i + offset,
+          });
+          if (errs) {
+            errors.push(...errs);
+          }
+          rows.push(row);
         }
-        rows.push(row);
-      }
 
-      await this.persist.storeData(jobId, rows, errors);
-      rows = [];
-      errors = [];
-      offset += batch.length;
-    } while (batch.length === QUEUE_BATCH_SIZE);
+        await this.persist.storeData(jobId, rows, errors);
+        rows = [];
+        errors = [];
+        offset += batch.length;
+      } while (batch.length === this.PROCESS_BZ);
 
-    await Promise.all([
-      this.persist.setAsDone(jobId),
-      this.persist.deleteTmpData(jobId),
-    ]);
+      await Promise.all([
+        this.persist.setAsDone(jobId),
+        this.persist.deleteTmpData(jobId),
+      ]);
+    } catch (e) {
+      throw e instanceof AppErr ? e : AppErr.unknown(e);
+    }
   }
 }
