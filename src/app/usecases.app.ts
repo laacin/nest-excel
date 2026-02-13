@@ -39,7 +39,7 @@ export class UseCase implements OnModuleInit {
   }
 
   // -- Handlers
-  async handleUpload(filename: string, format: string): Promise<string> {
+  async handleUploadFile(filename: string, format: string): Promise<string> {
     try {
       if (!filename.endsWith('.xlsx')) throw FileErr.noXlsx();
 

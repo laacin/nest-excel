@@ -28,7 +28,7 @@ export class Controllers {
       const { format } = req.body as Record<string, unknown>;
       if (!format) throw AppErr.wrongRequest('missing format');
 
-      const response = await this.use.handleUpload(
+      const response = await this.use.handleUploadFile(
         req.file.path,
         format as string,
       );
