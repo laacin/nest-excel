@@ -26,6 +26,7 @@ export class XlsxService {
     }
   }
 
+  // unused
   read(filename: string): unknown[][] {
     const wb = readFile(filename);
     const sheet = wb.Sheets[wb.SheetNames[0]];

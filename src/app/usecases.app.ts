@@ -42,6 +42,7 @@ export class UseCase implements OnModuleInit {
   async handleUpload(filename: string, format: string): Promise<string> {
     try {
       if (!filename.endsWith('.xlsx')) throw FileErr.noXlsx();
+
       new Format(format); // validate format
       const jobId = crypto.randomUUID();
 
@@ -117,7 +118,11 @@ export class UseCase implements OnModuleInit {
           rows.push(row);
         }
 
-        await this.persist.storeData(jobId, { rows, errors }, offset === 0);
+        await this.persist.storeData(
+          jobId,
+          { rows, columns, errors },
+          offset === 0,
+        );
         offset += batch.length;
       });
 
