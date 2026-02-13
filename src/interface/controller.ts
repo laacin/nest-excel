@@ -7,13 +7,6 @@ import { AppErr } from 'src/domain/errors';
 const FILE_DESTINATION = 'tmp';
 
 // TODO: parse no string values
-interface PaginationQuery {
-  page?: number;
-  limit?: number;
-  cols?: boolean;
-  error?: boolean;
-  errors?: boolean;
-}
 
 @Controller()
 export class Controllers {
@@ -21,7 +14,7 @@ export class Controllers {
 
   @Post('/upload')
   @File({ field: 'file', dest: FILE_DESTINATION })
-  async uploadFile(@UseContext() { req, res }: HttpContext) {
+  async postUploadFile(@UseContext() { req, res }: HttpContext) {
     try {
       if (!req.file) throw AppErr.wrongRequest('missing file');
 
@@ -40,10 +33,7 @@ export class Controllers {
   }
 
   @Get('/status/:id')
-  async getReadWithExtra(
-    @UseContext() { res }: HttpContext,
-    @Param('id') id: string,
-  ) {
+  async getStatus(@UseContext() { res }: HttpContext, @Param('id') id: string) {
     try {
       const response = await this.use.handleStatusRequest(id);
       res.status(200).send({ response });
@@ -52,26 +42,46 @@ export class Controllers {
     }
   }
 
-  // @Get('/data/:id')
-  // async getData(
-  //   @UseContext() { res }: HttpContext,
-  //   @Param('id') id: string,
-  //   @Query() query: PaginationQuery,
-  // ) {
-  //   try {
-  //     const limit = query.limit ?? 100;
-  //     const offset = ((query.page ?? 1) - 1) * limit;
-  //
-  //     const response = await this.use.handleDataRequest(id, {
-  //       errors: { limit, offset },
-  //       rows: { limit, offset },
-  //       columns: query.cols,
-  //       error: query.error,
-  //     });
-  //
-  //     res.status(200).send({ response });
-  //   } catch (e) {
-  //     res.sendErr(e);
-  //   }
-  // }
+  @Get('/rows/:id')
+  async getRows(
+    @UseContext() { res }: HttpContext,
+    @Param('id') id: string,
+    @Query() query: Record<string, unknown>,
+  ) {
+    try {
+      const { page, take, mapped } = query;
+
+      const response = await this.use.handleDataRequest(id, {
+        which: 'rows',
+        page: page as number,
+        take: take as number,
+        mapped: mapped as boolean,
+      });
+
+      res.status(200).send({ response });
+    } catch (e) {
+      res.sendErr(e);
+    }
+  }
+
+  @Get('/errors/:id')
+  async getErrors(
+    @UseContext() { res }: HttpContext,
+    @Param('id') id: string,
+    @Query() query: Record<string, unknown>,
+  ) {
+    try {
+      const { page, take } = query;
+
+      const response = await this.use.handleDataRequest(id, {
+        which: 'errors',
+        page: page as number,
+        take: take as number,
+      });
+
+      res.status(200).send({ response });
+    } catch (e) {
+      res.sendErr(e);
+    }
+  }
 }

@@ -1,18 +1,30 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { XlsxService } from './xlsx.service';
 import { Format, FormatInfo, resolveRow } from 'src/domain/format';
-import { CellError, Data, JobInfo, Row, STATUS } from 'src/domain/entity';
+import { CellError, Row, STATUS } from 'src/domain/entity';
 import { PERSIST, QUEUE } from 'src/domain/repository';
 import type { PersistRepository, QueueService } from 'src/domain/repository';
-import { BATCH_SIZE } from './config.app';
+import { BATCH_SIZE, QUEUE_JOB_NAME } from './config.app';
 import { AppErr, PersistErr, FileErr } from 'src/domain/errors';
 
-const JOB_QUEUE = 'job.queue';
 interface QueueData {
   jobId: string;
   filename: string;
   format: string;
 }
+
+type DataRequest =
+  | {
+      which: 'rows';
+      mapped?: boolean;
+      page: number;
+      take: number;
+    }
+  | {
+      which: 'errors';
+      page: number;
+      take: number;
+    };
 
 @Injectable()
 export class UseCase implements OnModuleInit {
@@ -24,9 +36,9 @@ export class UseCase implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.msg.newJob(JOB_QUEUE);
+    await this.msg.newJob(QUEUE_JOB_NAME);
     await this.msg.consumer(
-      JOB_QUEUE,
+      QUEUE_JOB_NAME,
       async (data) => {
         await this.processOnQueue(data);
       },
@@ -42,7 +54,7 @@ export class UseCase implements OnModuleInit {
       const jobId = crypto.randomUUID();
 
       await this.persist.storeJob(jobId);
-      this.msg.publish(JOB_QUEUE, { jobId, filename, format });
+      this.msg.publish(QUEUE_JOB_NAME, { jobId, filename, format });
 
       return jobId;
     } catch (e) {
@@ -61,18 +73,23 @@ export class UseCase implements OnModuleInit {
     }
   }
 
-  // async handleDataRequest(
-  //   jobId: string,
-  //   filter: DataFilter,
-  // ): Promise<Partial<Data & JobInfo>> {
-  //   try {
-  //     const result = await this.persist.getData(jobId, filter);
-  //     if (!result) throw PersistErr.jobNotFound();
-  //     return result;
-  //   } catch (e) {
-  //     throw e instanceof AppErr ? e : AppErr.unknown(e);
-  //   }
-  // }
+  async handleDataRequest(jobId: string, req: DataRequest): Promise<unknown> {
+    try {
+      const limit = req.take;
+      const offset = (Math.max(1, req.page) - 1) * limit;
+
+      const result =
+        req.which === 'rows'
+          ? await this.persist.getRows(jobId, limit, offset, req.mapped)
+          : await this.persist.getErrors(jobId, limit, offset);
+
+      if (!result) throw PersistErr.jobNotFound();
+
+      return result;
+    } catch (e) {
+      throw e instanceof AppErr ? e : AppErr.unknown(e);
+    }
+  }
 
   // -- internal use cases;
   async processOnQueue({ jobId, filename, format }: QueueData): Promise<void> {
