@@ -90,6 +90,7 @@ export class MongoConn
       promises.push(
         this.row.insertMany(
           data.rows.map(({ num, data }) => ({ jobId, num, data })),
+          { ordered: false },
         ),
       );
     }
@@ -98,6 +99,7 @@ export class MongoConn
       promises.push(
         this.err.insertMany(
           data.errors.map(({ col, row }) => ({ jobId, col, row })),
+          { ordered: false },
         ),
       );
     }
@@ -109,46 +111,38 @@ export class MongoConn
     jobId: string,
     filter: DataFilter,
   ): Promise<Partial<Data & JobInfo> | undefined> {
+    const [info, rows, errors] = await Promise.all([
+      this.job.findOne({ jobId }).lean(),
+
+      filter.rows
+        ? this.row
+            .find({ jobId }, { jobId: false })
+            .skip(filter.rows.offset)
+            .limit(filter.rows.limit)
+            .lean()
+        : null,
+
+      filter.errors
+        ? this.err
+            .find({ jobId }, { jobId: false })
+            .skip(filter.errors.offset)
+            .limit(filter.errors.limit)
+            .lean()
+        : null,
+    ]);
+
+    if (!info) return;
     const result: Partial<Data & JobInfo> = {};
 
-    const info = await this.job.findOne({ jobId }).lean();
-    if (!info) return;
+    result.rows = rows?.map(({ num, data }) => ({ num, data })) ?? [];
+    result.errors = errors?.map(({ row, col }) => ({ row, col })) ?? [];
 
-    if (filter.columns) {
-      result.columns = info.columns;
-    }
-
-    if (filter.error) {
-      result.error = info.error;
-    }
-
-    if (filter.jobId) {
-      result.jobId = info.jobId;
-    }
-
-    if (filter.status) {
-      result.status = info.status;
-    }
-
-    if (filter.rows) {
-      const r = await this.row
-        .find({ jobId }, { jobId: false })
-        .skip(filter.rows.offset)
-        .limit(filter.rows.limit)
-        .lean();
-
-      result.rows = r?.map(({ num, data }) => ({ num, data })) ?? [];
-    }
-
-    if (filter.errors) {
-      const r = await this.err
-        .find({ jobId }, { jobId: false })
-        .skip(filter.errors.offset)
-        .limit(filter.errors.limit)
-        .lean();
-
-      result.errors = r?.map(({ row, col }) => ({ row, col })) ?? [];
-    }
+    Object.entries(filter).forEach(([key, has]) => {
+      if (has && !['errors', 'rows', 'jobId'].includes(key)) {
+        const value = info[key as keyof typeof info];
+        result[key] = value;
+      }
+    });
 
     return result;
   }
