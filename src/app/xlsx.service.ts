@@ -24,6 +24,7 @@ export class XlsxService {
         batch = [];
       }
     }
+    if (batch.length) await onBatch(batch);
   }
 
   // unused

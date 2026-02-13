@@ -60,7 +60,7 @@ export class Controllers {
   ) {
     try {
       const limit = query.limit ?? 100;
-      const offset = (query.page ?? 1 - 1) * limit;
+      const offset = ((query.page ?? 1) - 1) * limit;
 
       const response = await this.use.handleDataRequest(id, {
         errors: { limit, offset },
