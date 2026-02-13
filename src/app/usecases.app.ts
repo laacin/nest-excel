@@ -107,7 +107,7 @@ export class UseCase implements OnModuleInit {
         const rows: Row[] = [];
         const errors: CellError[] = [];
 
-        for (let i = 0; i < batch.length; i++) {
+        for (let i = 0; i < rawRows.length; i++) {
           const { row, errs } = resolveRow({
             fmt: fmtInfo,
             colIndex,
