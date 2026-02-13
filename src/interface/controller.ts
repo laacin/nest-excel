@@ -49,12 +49,13 @@ export class Controllers {
     @Query() query: Record<string, unknown>,
   ) {
     try {
-      const { page, take, mapped } = query;
+      const { page, take, desc, mapped } = query;
 
       const response = await this.use.handleDataRequest(id, {
         which: 'rows',
         page: page as number,
         take: take as number,
+        desc: desc as boolean,
         mapped: mapped as boolean,
       });
 
@@ -71,12 +72,13 @@ export class Controllers {
     @Query() query: Record<string, unknown>,
   ) {
     try {
-      const { page, take } = query;
+      const { page, take, desc } = query;
 
       const response = await this.use.handleDataRequest(id, {
         which: 'errors',
         page: page as number,
         take: take as number,
+        desc: desc as boolean,
       });
 
       res.status(200).send({ response });

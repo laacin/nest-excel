@@ -6,7 +6,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { PersistRepository } from 'src/domain/repository';
+import { PersistRepository, Sort } from 'src/domain/repository';
 import { JobSchema, RowSchema, ErrSchema } from './schemas';
 import { MONGO_URL } from '../config';
 
@@ -86,10 +86,12 @@ export class MongoConn
       );
     }
 
+    // NOTE: unordered sacrifices atomicity to improve performance
     if (data.rows?.length) {
       promises.push(
         this.row.insertMany(
           data.rows.map(({ num, data }) => ({ jobId, num, data })),
+          { ordered: false },
         ),
       );
     }
@@ -98,6 +100,7 @@ export class MongoConn
       promises.push(
         this.err.insertMany(
           data.errors.map(({ col, row }) => ({ jobId, col, row })),
+          { ordered: false },
         ),
       );
     }
@@ -107,14 +110,16 @@ export class MongoConn
 
   async getRows(
     jobId: string,
-    limit: number,
-    offset: number,
+    { limit, offset, desc }: Sort,
     mapped?: boolean,
   ): Promise<unknown[] | undefined> {
+    const ord = desc ? -1 : 1;
+
     const [info, result] = await Promise.all([
       this.job.findOne({ jobId }, { columns: true }).lean(),
       this.row
         .find({ jobId }, { jobId: false })
+        .sort({ num: ord })
         .skip(offset)
         .limit(limit)
         .lean(),
@@ -130,11 +135,13 @@ export class MongoConn
 
   async getErrors(
     jobId: string,
-    limit: number,
-    offset: number,
+    { limit, offset, desc }: Sort,
   ): Promise<CellError[] | undefined> {
+    const ord = desc ? -1 : 1;
+
     const errs = await this.err
       .find({ jobId }, { jobId: false })
+      .sort({ row: ord, col: ord })
       .skip(offset)
       .limit(limit)
       .lean();

@@ -17,15 +17,16 @@ export interface PersistRepository {
 
   getRows(
     jobId: string,
-    limit: number,
-    offset: number,
+    sort: Sort,
     mapped?: boolean,
   ): Promise<unknown[] | undefined>;
-  getErrors(
-    jobId: string,
-    limit: number,
-    offset: number,
-  ): Promise<CellError[] | undefined>;
+  getErrors(jobId: string, sort: Sort): Promise<CellError[] | undefined>;
+}
+
+export interface Sort {
+  limit: number;
+  offset: number;
+  desc?: boolean;
 }
 
 export const QUEUE = 'QUEUE';

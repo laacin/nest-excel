@@ -19,11 +19,13 @@ type DataRequest =
       mapped?: boolean;
       page: number;
       take: number;
+      desc?: boolean;
     }
   | {
       which: 'errors';
       page: number;
       take: number;
+      desc?: boolean;
     };
 
 @Injectable()
@@ -80,8 +82,16 @@ export class UseCase implements OnModuleInit {
 
       const result =
         req.which === 'rows'
-          ? await this.persist.getRows(jobId, limit, offset, req.mapped)
-          : await this.persist.getErrors(jobId, limit, offset);
+          ? await this.persist.getRows(
+              jobId,
+              { limit, offset, desc: req.desc },
+              req.mapped,
+            )
+          : await this.persist.getErrors(jobId, {
+              limit,
+              offset,
+              desc: req.desc,
+            });
 
       if (!result) throw PersistErr.jobNotFound();
 
