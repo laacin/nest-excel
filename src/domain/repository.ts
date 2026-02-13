@@ -1,4 +1,4 @@
-import { Data, JobInfo } from './entity';
+import { CellError, Data, JobInfo } from './entity';
 
 export const PERSIST = 'PERSIST';
 export interface PersistRepository {
@@ -14,17 +14,19 @@ export interface PersistRepository {
     data: Partial<Data>,
     exists?: boolean,
   ): Promise<void>;
-  getData(
-    jobId: string,
-    filter: DataFilter,
-  ): Promise<Partial<Data & JobInfo> | undefined>;
-}
 
-export type DataFilter = {
-  [K in keyof Data | keyof JobInfo]?: K extends 'rows' | 'errors'
-    ? { limit: number; offset: number }
-    : boolean;
-};
+  getRows(
+    jobId: string,
+    limit: number,
+    offset: number,
+    mapped?: boolean,
+  ): Promise<unknown[] | undefined>;
+  getErrors(
+    jobId: string,
+    limit: number,
+    offset: number,
+  ): Promise<CellError[] | undefined>;
+}
 
 export const QUEUE = 'QUEUE';
 export interface QueueService<T> {

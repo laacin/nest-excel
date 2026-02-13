@@ -52,26 +52,26 @@ export class Controllers {
     }
   }
 
-  @Get('/data/:id')
-  async getData(
-    @UseContext() { res }: HttpContext,
-    @Param('id') id: string,
-    @Query() query: PaginationQuery,
-  ) {
-    try {
-      const limit = query.limit ?? 100;
-      const offset = ((query.page ?? 1) - 1) * limit;
-
-      const response = await this.use.handleDataRequest(id, {
-        errors: { limit, offset },
-        rows: { limit, offset },
-        columns: query.cols,
-        error: query.error,
-      });
-
-      res.status(200).send({ response });
-    } catch (e) {
-      res.sendErr(e);
-    }
-  }
+  // @Get('/data/:id')
+  // async getData(
+  //   @UseContext() { res }: HttpContext,
+  //   @Param('id') id: string,
+  //   @Query() query: PaginationQuery,
+  // ) {
+  //   try {
+  //     const limit = query.limit ?? 100;
+  //     const offset = ((query.page ?? 1) - 1) * limit;
+  //
+  //     const response = await this.use.handleDataRequest(id, {
+  //       errors: { limit, offset },
+  //       rows: { limit, offset },
+  //       columns: query.cols,
+  //       error: query.error,
+  //     });
+  //
+  //     res.status(200).send({ response });
+  //   } catch (e) {
+  //     res.sendErr(e);
+  //   }
+  // }
 }

@@ -3,6 +3,13 @@ import { readFile, stream, utils } from 'xlsx';
 
 @Injectable()
 export class XlsxService {
+  getColumns(filename: string): string[] {
+    const wb = readFile(filename);
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const cols = stream.to_json(sheet, { header: 1 }) as unknown[][];
+    return cols.length ? (cols[0] as string[]) : [];
+  }
+
   async stream(
     filename: string,
     batchSize: number,
@@ -32,8 +39,6 @@ export class XlsxService {
   read(filename: string): unknown[][] {
     const wb = readFile(filename);
     const sheet = wb.Sheets[wb.SheetNames[0]];
-    return utils.sheet_to_json(sheet, {
-      header: 1,
-    });
+    return utils.sheet_to_json(sheet, { header: 1 });
   }
 }

@@ -6,7 +6,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { DataFilter, PersistRepository } from 'src/domain/repository';
+import { PersistRepository } from 'src/domain/repository';
 import { JobSchema, RowSchema, ErrSchema } from './schemas';
 import { MONGO_URL } from '../config';
 
@@ -90,7 +90,6 @@ export class MongoConn
       promises.push(
         this.row.insertMany(
           data.rows.map(({ num, data }) => ({ jobId, num, data })),
-          { ordered: false },
         ),
       );
     }
@@ -99,7 +98,6 @@ export class MongoConn
       promises.push(
         this.err.insertMany(
           data.errors.map(({ col, row }) => ({ jobId, col, row })),
-          { ordered: false },
         ),
       );
     }
@@ -107,43 +105,41 @@ export class MongoConn
     await Promise.all(promises);
   }
 
-  async getData(
+  async getRows(
     jobId: string,
-    filter: DataFilter,
-  ): Promise<Partial<Data & JobInfo> | undefined> {
-    const [info, rows, errors] = await Promise.all([
-      this.job.findOne({ jobId }).lean(),
-
-      filter.rows
-        ? this.row
-            .find({ jobId }, { jobId: false })
-            .skip(filter.rows.offset)
-            .limit(filter.rows.limit)
-            .lean()
-        : null,
-
-      filter.errors
-        ? this.err
-            .find({ jobId }, { jobId: false })
-            .skip(filter.errors.offset)
-            .limit(filter.errors.limit)
-            .lean()
-        : null,
+    limit: number,
+    offset: number,
+    mapped?: boolean,
+  ): Promise<unknown[] | undefined> {
+    const [info, result] = await Promise.all([
+      this.job.findOne({ jobId }, { columns: true }).lean(),
+      this.row
+        .find({ jobId }, { jobId: false })
+        .skip(offset)
+        .limit(limit)
+        .lean(),
     ]);
+    if (!info?.columns.length) return;
 
-    if (!info) return;
-    const result: Partial<Data & JobInfo> = {};
+    return result.map(({ data }) =>
+      mapped
+        ? Object.fromEntries(data.map((v, i) => [info.columns[i], v]))
+        : data,
+    );
+  }
 
-    result.rows = rows?.map(({ num, data }) => ({ num, data })) ?? [];
-    result.errors = errors?.map(({ row, col }) => ({ row, col })) ?? [];
+  async getErrors(
+    jobId: string,
+    limit: number,
+    offset: number,
+  ): Promise<CellError[] | undefined> {
+    const errs = await this.err
+      .find({ jobId }, { jobId: false })
+      .skip(offset)
+      .limit(limit)
+      .lean();
+    if (!errs) return;
 
-    Object.entries(filter).forEach(([key, has]) => {
-      if (has && !['errors', 'rows', 'jobId'].includes(key)) {
-        const value = info[key as keyof typeof info];
-        result[key] = value;
-      }
-    });
-
-    return result;
+    return errs.map(({ row, col }) => ({ row, col }));
   }
 }

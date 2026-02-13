@@ -3,11 +3,7 @@ import { XlsxService } from './xlsx.service';
 import { Format, FormatInfo, resolveRow } from 'src/domain/format';
 import { CellError, Data, JobInfo, Row, STATUS } from 'src/domain/entity';
 import { PERSIST, QUEUE } from 'src/domain/repository';
-import type {
-  DataFilter,
-  PersistRepository,
-  QueueService,
-} from 'src/domain/repository';
+import type { PersistRepository, QueueService } from 'src/domain/repository';
 import { BATCH_SIZE } from './config.app';
 import { AppErr, PersistErr, FileErr } from 'src/domain/errors';
 
@@ -38,7 +34,6 @@ export class UseCase implements OnModuleInit {
     );
   }
 
-  // -- Handlers
   async handleUploadFile(filename: string, format: string): Promise<string> {
     try {
       if (!filename.endsWith('.xlsx')) throw FileErr.noXlsx();
@@ -66,18 +61,18 @@ export class UseCase implements OnModuleInit {
     }
   }
 
-  async handleDataRequest(
-    jobId: string,
-    filter: DataFilter,
-  ): Promise<Partial<Data & JobInfo>> {
-    try {
-      const result = await this.persist.getData(jobId, filter);
-      if (!result) throw PersistErr.jobNotFound();
-      return result;
-    } catch (e) {
-      throw e instanceof AppErr ? e : AppErr.unknown(e);
-    }
-  }
+  // async handleDataRequest(
+  //   jobId: string,
+  //   filter: DataFilter,
+  // ): Promise<Partial<Data & JobInfo>> {
+  //   try {
+  //     const result = await this.persist.getData(jobId, filter);
+  //     if (!result) throw PersistErr.jobNotFound();
+  //     return result;
+  //   } catch (e) {
+  //     throw e instanceof AppErr ? e : AppErr.unknown(e);
+  //   }
+  // }
 
   // -- internal use cases;
   async processOnQueue({ jobId, filename, format }: QueueData): Promise<void> {
