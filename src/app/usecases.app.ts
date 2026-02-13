@@ -1,6 +1,6 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { XlsxService } from './xlsx.service';
-import { Format, resolveRow } from 'src/domain/format';
+import { Format, FormatInfo, resolveRow } from 'src/domain/format';
 import { CellError, Data, JobInfo, Row, STATUS } from 'src/domain/entity';
 import { PERSIST, QUEUE } from 'src/domain/repository';
 import type {
@@ -88,6 +88,7 @@ export class UseCase implements OnModuleInit {
 
       let columns: string[] = [];
       let colIndex: number[] = [];
+      let fmtInfo: FormatInfo[] = [];
       let rawRows: unknown[][] = [];
       let offset = 0;
 
@@ -97,6 +98,7 @@ export class UseCase implements OnModuleInit {
 
           columns = cols as string[];
           colIndex = fmt.getColIndex(columns);
+          fmtInfo = fmt.getInfo();
           rawRows = rows;
         } else {
           rawRows = batch;
@@ -107,7 +109,7 @@ export class UseCase implements OnModuleInit {
 
         for (let i = 0; i < batch.length; i++) {
           const { row, errs } = resolveRow({
-            fmt: fmt.getInfo(),
+            fmt: fmtInfo,
             colIndex,
             rowData: rawRows[i],
             rowIdx: i + offset,
@@ -121,7 +123,7 @@ export class UseCase implements OnModuleInit {
         await this.persist.storeData(
           jobId,
           { rows, columns, errors },
-          offset === 0,
+          offset !== 0,
         );
         offset += batch.length;
       });
