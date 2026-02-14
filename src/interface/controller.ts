@@ -26,7 +26,7 @@ export class Controllers {
         format as string,
       );
 
-      res.status(201).send({ response });
+      res.status(201).send(response);
     } catch (e) {
       res.sendErr(e);
     }
@@ -36,7 +36,7 @@ export class Controllers {
   async getStatus(@UseContext() { res }: HttpContext, @Param('id') id: string) {
     try {
       const response = await this.use.handleStatusRequest(id);
-      res.status(200).send({ response });
+      res.status(200).send(response);
     } catch (e) {
       res.sendErr(e);
     }
@@ -59,7 +59,7 @@ export class Controllers {
         mapped: mapped as boolean,
       });
 
-      res.status(200).send({ response });
+      res.status(200).send(response);
     } catch (e) {
       res.sendErr(e);
     }
@@ -81,7 +81,7 @@ export class Controllers {
         desc: desc as boolean,
       });
 
-      res.status(200).send({ response });
+      res.status(200).send(response);
     } catch (e) {
       res.sendErr(e);
     }

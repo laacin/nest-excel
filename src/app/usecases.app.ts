@@ -48,7 +48,7 @@ export class UseCase implements OnModuleInit {
     );
   }
 
-  async handleUploadFile(filename: string, format: string): Promise<string> {
+  async handleUploadFile(filename: string, format: string): Promise<unknown> {
     try {
       if (!filename.endsWith('.xlsx')) throw FileErr.noXlsx();
 
@@ -58,18 +58,25 @@ export class UseCase implements OnModuleInit {
       await this.persist.storeJob(jobId);
       this.msg.publish(QUEUE_JOB_NAME, { jobId, filename, format });
 
-      return jobId;
+      return { jobId };
     } catch (e) {
       throw e instanceof AppErr ? e : AppErr.unknown(e);
     }
   }
 
-  async handleStatusRequest(jobId: string): Promise<STATUS> {
+  async handleStatusRequest(jobId: string): Promise<unknown> {
     try {
       const info = await this.persist.getJob(jobId);
       if (!info) throw PersistErr.jobNotFound();
 
-      return info.status;
+      const result = {};
+      result['status'] = info.status;
+
+      if (info.status === STATUS.ERROR) {
+        result['reason'] = info.error;
+      }
+
+      return result;
     } catch (e) {
       throw e instanceof AppErr ? e : AppErr.unknown(e);
     }
@@ -108,7 +115,7 @@ export class UseCase implements OnModuleInit {
 
       const fmt = new Format(format);
 
-      let columns: string[] = [];
+      const columns: string[] = [];
       let colIndex: number[] = [];
       let fmtInfo: FormatInfo[] = [];
       let rawRows: unknown[][] = [];
@@ -118,8 +125,8 @@ export class UseCase implements OnModuleInit {
         if (offset === 0) {
           const [cols, ...rows] = batch;
 
-          columns = cols as string[];
-          colIndex = fmt.getColIndex(columns);
+          colIndex = fmt.getColIndex(cols as string[]);
+          colIndex.forEach((i) => columns.push((cols as string[])[i]));
           fmtInfo = fmt.getInfo();
           rawRows = rows;
         } else {
