@@ -1,4 +1,4 @@
-import { AppErr, ERR_CODE } from './base.error';
+import { AppErr, ERR_CODE } from './base.err';
 
 export class FmtErr extends AppErr {
   static invalidFormat() {

@@ -1,17 +1,23 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { XlsxService } from './xlsx.service';
-import { Format, FormatInfo, resolveRow } from 'src/domain/format';
-import { CellError, Row, STATUS } from 'src/domain/entity';
-import { PERSIST, QUEUE } from 'src/domain/repository';
-import type { PersistRepository, QueueService } from 'src/domain/repository';
-import { BATCH_SIZE, QUEUE_JOB_NAME } from './config.app';
-import { AppErr, PersistErr, FileErr } from 'src/domain/errors';
+import { Sheet } from './xlsx.service';
+import { Format } from 'src/domain/format';
+import { CellErr, Row, STATUS } from 'src/domain/entity';
+import { PERSIST, MESSAGING } from 'src/domain/repository';
+import type {
+  PersistRepository,
+  MessagingService,
+  Sort,
+} from 'src/domain/repository';
+import { BATCH_SIZE } from './config.app';
+import { AppErr, PersistErr, FileErr } from 'src/domain/errs';
 
 interface QueueData {
   jobId: string;
   filename: string;
-  format: string;
+  formatString: string;
 }
+
+const PROCESS_QUEUE = 'process.queue';
 
 type DataRequest =
   | {
@@ -22,7 +28,7 @@ type DataRequest =
       desc?: boolean;
     }
   | {
-      which: 'errors';
+      which: 'cellErrs';
       page: number;
       take: number;
       desc?: boolean;
@@ -32,139 +38,159 @@ type DataRequest =
 export class UseCase implements OnModuleInit {
   constructor(
     @Inject(PERSIST) private readonly persist: PersistRepository,
-    @Inject(QUEUE) private readonly msg: QueueService<QueueData>,
+    @Inject(MESSAGING) private readonly msg: MessagingService,
     @Inject(BATCH_SIZE) private readonly BATCH_SIZE: number,
-    private readonly XLSX: XlsxService,
   ) {}
 
   async onModuleInit() {
-    await this.msg.newJob(QUEUE_JOB_NAME);
-    await this.msg.consumer(
-      QUEUE_JOB_NAME,
-      async (data) => {
-        await this.processOnQueue(data);
+    await Promise.all([this.msg.storeQueue(PROCESS_QUEUE)]);
+    await this.msg.storeConsumers([
+      {
+        queue: PROCESS_QUEUE,
+        work: (data: QueueData) => this.processJob(data),
+        onErr: { requeue: true },
       },
-      { fallback: (e, data) => this.processFails(e, data) },
-    );
+    ]);
   }
 
-  async handleUploadFile(filename: string, format: string): Promise<unknown> {
+  async handleUploadFile(
+    filename: string,
+    formatString: string,
+  ): Promise<{ jobId: string }> {
     try {
       if (!filename.endsWith('.xlsx')) throw FileErr.noXlsx();
 
-      new Format(format); // validate format
+      new Format(formatString); // validate format
       const jobId = crypto.randomUUID();
 
-      await this.persist.storeJob(jobId);
-      this.msg.publish(QUEUE_JOB_NAME, { jobId, filename, format });
+      await this.persist.setAsPending(jobId);
+      this.msg.publish(PROCESS_QUEUE, { jobId, filename, formatString });
 
       return { jobId };
-    } catch (e) {
-      throw e instanceof AppErr ? e : AppErr.unknown(e);
+    } catch (err) {
+      throw err instanceof AppErr ? err : AppErr.unknown(err);
     }
   }
 
   async handleStatusRequest(jobId: string): Promise<unknown> {
     try {
-      const info = await this.persist.getJob(jobId);
-      if (!info) throw PersistErr.jobNotFound();
+      const job = await this.persist.getJob(jobId);
+      if (!job) throw PersistErr.jobNotFound();
 
-      const result = {};
-      result['status'] = info.status;
+      if (job.status === STATUS.PROCESSING) {
+        const [rowCount, cellErrCount] = await Promise.all([
+          this.persist.countRows(jobId),
+          this.persist.countCellErrs(jobId),
+        ]);
 
-      if (info.status === STATUS.ERROR) {
-        result['reason'] = info.error;
+        job.rowsCount = rowCount;
+        job.cellErrCount = cellErrCount;
       }
 
-      return result;
-    } catch (e) {
-      throw e instanceof AppErr ? e : AppErr.unknown(e);
+      return job;
+    } catch (err) {
+      throw err instanceof AppErr ? err : AppErr.unknown(err);
     }
   }
 
   async handleDataRequest(jobId: string, req: DataRequest): Promise<unknown> {
     try {
-      const limit = req.take;
-      const offset = (Math.max(1, req.page) - 1) * limit;
+      const job = await this.persist.getJob(jobId);
+      if (!job) throw PersistErr.jobNotFound();
+      if (job.status !== STATUS.DONE) throw PersistErr.jobInProcess();
 
-      const result =
-        req.which === 'rows'
-          ? await this.persist.getRows(
-              jobId,
-              { limit, offset, desc: req.desc },
-              req.mapped,
-            )
-          : await this.persist.getErrors(jobId, {
-              limit,
-              offset,
-              desc: req.desc,
-            });
+      const sort: Sort = {
+        limit: req.take,
+        offset: (Math.max(1, req.page) - 1) * req.take,
+        desc: req.desc,
+      };
 
-      if (!result) throw PersistErr.jobNotFound();
+      if (req.which === 'rows') {
+        const rows = await this.persist.getRows(jobId, sort);
 
-      return result;
-    } catch (e) {
-      throw e instanceof AppErr ? e : AppErr.unknown(e);
+        if (req.mapped) {
+          return rows.map(({ values }) =>
+            Object.fromEntries(values.map((v, i) => [job.cols[i], v])),
+          );
+        }
+
+        return rows;
+      }
+
+      if (req.which === 'cellErrs') {
+        return await this.persist.getCellErrs(jobId, sort);
+      }
+    } catch (err) {
+      throw err instanceof AppErr ? err : AppErr.unknown(err);
     }
   }
 
   // -- internal use cases;
-  async processOnQueue({ jobId, filename, format }: QueueData): Promise<void> {
+  async processJob({
+    jobId,
+    filename,
+    formatString,
+  }: QueueData): Promise<void> {
     try {
-      await this.persist.setAsProcessing(jobId);
+      const [rowsCount, cellErrCount] = await Promise.all([
+        this.persist.countRows(jobId),
+        this.persist.countCellErrs(jobId),
+      ]);
 
-      const fmt = new Format(format);
+      const sheet = new Sheet(filename);
+      const fmt = new Format(formatString, sheet.getRawCols());
+      const totalRows = sheet.getTotalRows();
 
-      const columns: string[] = [];
-      let colIndex: number[] = [];
-      let fmtInfo: FormatInfo[] = [];
-      let rawRows: unknown[][] = [];
-      let offset = 0;
+      await this.persist.setAsProcessing(jobId, {
+        cols: fmt.getCols(),
+        totalRows,
+        rowsCount,
+        cellErrCount,
+      });
 
-      await this.XLSX.stream(filename, this.BATCH_SIZE, async (batch) => {
-        if (offset === 0) {
-          const [cols, ...rows] = batch;
-
-          colIndex = fmt.getColIndex(cols as string[]);
-          colIndex.forEach((i) => columns.push((cols as string[])[i]));
-          fmtInfo = fmt.getInfo();
-          rawRows = rows;
-        } else {
-          rawRows = batch;
+      let offset = rowsCount;
+      while (offset < totalRows) {
+        const rawRows = sheet.getRawRows(this.BATCH_SIZE, offset);
+        if (rawRows.length === 0) {
+          throw AppErr.internal('unexpected no raw rows');
         }
 
         const rows: Row[] = [];
-        const errors: CellError[] = [];
+        const cellErrs: CellErr[] = [];
 
-        for (let i = 0; i < rawRows.length; i++) {
-          const { row, errs } = resolveRow({
-            fmt: fmtInfo,
-            colIndex,
-            rowData: rawRows[i],
-            rowIdx: i + offset,
-          });
-          if (errs) {
-            errors.push(...errs);
-          }
-          rows.push(row);
+        for (const rawRow of rawRows) {
+          const resolved = fmt.resolveRawRow(rawRow);
+
+          if (resolved.cellErrs) cellErrs.push(...resolved.cellErrs);
+          rows.push(resolved.row);
         }
 
-        await this.persist.storeData(
-          jobId,
-          { rows, columns, errors },
-          offset !== 0,
+        const promises = [this.persist.storeRows(jobId, rows)];
+        if (cellErrs.length) {
+          promises.push(this.persist.storeCellErrs(jobId, cellErrs));
+        }
+
+        await Promise.all(promises);
+        offset += rawRows.length;
+      }
+
+      const [rowsCountFinal, cellErrCountFinal] = await Promise.all([
+        this.persist.countRows(jobId),
+        this.persist.countCellErrs(jobId),
+      ]);
+
+      if (rowsCountFinal !== totalRows) {
+        console.log(
+          `mismatch totalRows: expected: ${totalRows}, have: ${rowsCount}`,
         );
-        offset += batch.length;
+      }
+
+      await this.persist.setAsDone(jobId, {
+        rowsCount: rowsCountFinal,
+        cellErrCount: cellErrCountFinal,
       });
-
-      await this.persist.setAsDone(jobId);
-    } catch (e) {
-      throw e instanceof AppErr ? e : AppErr.unknown(e);
+    } catch (err) {
+      throw err instanceof AppErr ? err : AppErr.unknown(err);
     }
-  }
-
-  async processFails(e: unknown, { jobId }: QueueData): Promise<void> {
-    const err = e instanceof AppErr ? e : AppErr.unknown(e);
-    await this.persist.setAsError(jobId, err.message);
   }
 }

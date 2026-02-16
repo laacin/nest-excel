@@ -1,74 +1,90 @@
-import {
-  Inject,
-  Injectable,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { connect, ChannelModel, Channel, ConsumeMessage } from 'amqplib';
-import { OnConsumerErr, QueueService } from 'src/domain/repository';
-import { AMQP_URL } from '../config';
+import { MessagingService, Consumer } from 'src/domain/repository';
 
 @Injectable()
-export class RabbitMqConn<T>
-  implements OnModuleInit, OnModuleDestroy, QueueService<T>
-{
+export class RabbitMqImpl implements OnModuleDestroy, MessagingService {
   private conn: ChannelModel;
   private ch: Channel;
+  private consumers = new Map<
+    string,
+    Omit<Consumer, 'queue'> & { tag?: string }
+  >();
 
-  constructor(@Inject(AMQP_URL) private readonly url: string) {}
-
-  async onModuleInit() {
-    const conn = await connect(this.url);
-    const ch = await conn.createChannel();
-
-    this.ch = ch;
-    this.conn = conn;
-  }
+  constructor(private guard: () => Promise<boolean>) {}
 
   async onModuleDestroy() {
     await this.ch.close();
     await this.conn.close();
   }
 
-  // -- Methods
-  async newJob(job: string): Promise<void> {
-    await this.ch.assertQueue(job, { durable: true });
+  async connect(url: string): Promise<void> {
+    this.conn = await connect(url);
+    this.ch = await this.conn.createChannel();
   }
 
-  publish(job: string, data: T): void {
-    this.ch.sendToQueue(job, Buffer.from(JSON.stringify(data)), {
-      persistent: true,
+  stopConsumers(): void {
+    this.consumers.forEach(({ tag }, queue) => {
+      if (!tag) return;
+
+      void this.ch.cancel(tag).then(() => {
+        const c = this.consumers.get(queue);
+        if (c) this.consumers.set(queue, { ...c, tag: undefined });
+      });
     });
   }
 
-  async consumer(
-    job: string,
-    work: (data: T) => Promise<void>,
-    onErr?: OnConsumerErr<T>,
-  ): Promise<void> {
-    await this.ch.consume(job, (msg) => {
-      if (!msg) return;
+  runConsumers(): void {
+    this.consumers.forEach(({ work, onErr, tag }, queue) => {
+      if (tag) return;
 
-      const data = JSON.parse(msg.content.toString()) as T;
-      void this.handleWork(msg, work, data, onErr);
+      void (async () => {
+        const { consumerTag } = await this.ch.consume(queue, (msg) => {
+          if (!msg) return;
+
+          const data = JSON.parse(msg.content.toString()) as unknown;
+          void this.handleWork(msg, data, { work, onErr });
+        });
+
+        const c = this.consumers.get(queue);
+        if (c) this.consumers.set(queue, { ...c, tag: consumerTag });
+      })();
     });
   }
 
   private async handleWork(
     msg: ConsumeMessage,
-    work: (data: T) => Promise<void>,
-    data: T,
-    onErr?: OnConsumerErr<T>,
+    data: unknown,
+    { work, onErr }: Omit<Consumer, 'queue'>,
   ): Promise<void> {
     try {
       await work(data);
       this.ch.ack(msg);
-    } catch (e) {
+    } catch (err) {
       try {
-        await onErr?.fallback?.(e, data);
+        await onErr?.fallback?.(err, data);
       } finally {
         this.ch.nack(msg, false, onErr?.requeue ?? false);
       }
     }
+  }
+
+  // -- MessagingService methods
+  async storeQueue(queue: string): Promise<void> {
+    await this.ch.assertQueue(queue, { durable: true });
+  }
+
+  async storeConsumers(consumers: Consumer[]): Promise<void> {
+    consumers.forEach(({ queue, work, onErr }) => {
+      this.consumers.set(queue, { work, onErr });
+    });
+
+    if (await this.guard()) this.runConsumers();
+  }
+
+  publish(queue: string, data: unknown): void {
+    this.ch.sendToQueue(queue, Buffer.from(JSON.stringify(data)), {
+      persistent: true,
+    });
   }
 }

@@ -1,152 +1,137 @@
-import { CellError, Data, JobInfo, Row, STATUS } from 'src/domain/entity';
-import { connect, model, Model, Mongoose } from 'mongoose';
 import {
-  Inject,
-  Injectable,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+  CellErr,
+  Job,
+  JobAsDone,
+  JobAsError,
+  JobAsProcess,
+  Row,
+  STATUS,
+} from 'src/domain/entity';
+import { connect, model, Model, Mongoose } from 'mongoose';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { PersistRepository, Sort } from 'src/domain/repository';
-import { JobSchema, RowSchema, ErrSchema } from './schemas';
-import { MONGO_URL } from '../config';
+import { JobSchema, RowSchema, CellErrSchema } from './schemas';
 
 @Injectable()
-export class MongoConn
-  implements PersistRepository, OnModuleInit, OnModuleDestroy
-{
+export class MongoImpl implements PersistRepository, OnModuleDestroy {
   private conn: Mongoose;
-  private job: Model<JobInfo & { columns: string[] }>;
+  private job: Model<Job>;
   private row: Model<Row & { jobId: string }>;
-  private err: Model<CellError & { jobId: string }>;
-
-  constructor(@Inject(MONGO_URL) private readonly url: string) {}
-
-  // Init nestjs methods
-  async onModuleInit() {
-    const conn = await connect(this.url);
-    const job = model('job', JobSchema);
-    const row = model('row', RowSchema);
-    const err = model('err', ErrSchema);
-
-    this.conn = conn;
-    this.job = job;
-    this.row = row;
-    this.err = err;
-  }
+  private cellErr: Model<CellErr & { jobId: string }>;
 
   async onModuleDestroy() {
     await this.conn.disconnect();
   }
 
-  // PersistLayer methods
-  async storeJob(jobId: string): Promise<void> {
+  async connect(url: string): Promise<void> {
+    const conn = await connect(url, {
+      serverSelectionTimeoutMS: 2000,
+      connectTimeoutMS: 2000,
+      socketTimeoutMS: 2000,
+    });
+
+    const job = model('job', JobSchema);
+    const row = model('row', RowSchema);
+    const cellErr = model('cellErr', CellErrSchema);
+
+    this.conn = conn;
+    this.job = job;
+    this.row = row;
+    this.cellErr = cellErr;
+  }
+
+  setup({
+    onConnect,
+    onDisconnect,
+  }: {
+    onConnect?: () => void;
+    onDisconnect?: () => void;
+  }): void {
+    if (onConnect) this.conn.connection.on('connected', onConnect);
+    if (onDisconnect) this.conn.connection.on('disconnected', onDisconnect);
+  }
+
+  async isConnected(): Promise<boolean> {
+    try {
+      await this.conn.connection.db?.admin().ping();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // PersistRepository methods
+  async setAsPending(jobId: string): Promise<void> {
     await this.job.create({ jobId, status: STATUS.PENDING });
   }
 
-  async getJob(jobId: string): Promise<JobInfo | undefined> {
-    const r = await this.job.findOne({ jobId }).lean();
-    if (!r) return;
-
-    return {
-      jobId: r.jobId,
-      status: r.status,
-      error: r.error,
-    };
-  }
-
-  async setAsProcessing(jobId: string): Promise<void> {
+  async setAsProcessing(jobId: string, updates: JobAsProcess): Promise<void> {
     await this.job.updateOne(
       { jobId },
-      { $set: { status: STATUS.PROCESSING } },
+      { $set: { status: STATUS.PROCESSING, ...updates } },
     );
   }
 
-  async setAsDone(jobId: string): Promise<void> {
-    await this.job.updateOne({ jobId }, { $set: { status: STATUS.DONE } });
-  }
-
-  async setAsError(jobId: string, reason?: string): Promise<void> {
-    const rs = reason ? reason : 'unknown reason';
+  async setAsDone(jobId: string, updates: JobAsDone): Promise<void> {
     await this.job.updateOne(
       { jobId },
-      { $set: { status: STATUS.ERROR, error: rs } },
+      { $set: { status: STATUS.DONE, ...updates } },
     );
   }
 
-  async storeData(
-    jobId: string,
-    data: Partial<Data>,
-    exists?: boolean,
-  ): Promise<void> {
-    const promises: Promise<unknown>[] = [];
-
-    if (!exists && data.columns?.length) {
-      promises.push(
-        this.job.updateOne({ jobId }, { $set: { columns: data.columns } }),
-      );
-    }
-
-    // NOTE: unordered sacrifices atomicity to improve performance
-    if (data.rows?.length) {
-      promises.push(
-        this.row.insertMany(
-          data.rows.map(({ num, data }) => ({ jobId, num, data })),
-          { ordered: false },
-        ),
-      );
-    }
-
-    if (data.errors?.length) {
-      promises.push(
-        this.err.insertMany(
-          data.errors.map(({ col, row }) => ({ jobId, col, row })),
-          { ordered: false },
-        ),
-      );
-    }
-
-    await Promise.all(promises);
-  }
-
-  async getRows(
-    jobId: string,
-    { limit, offset, desc }: Sort,
-    mapped?: boolean,
-  ): Promise<unknown[] | undefined> {
-    const ord = desc ? -1 : 1;
-
-    const [info, result] = await Promise.all([
-      this.job.findOne({ jobId }, { columns: true }).lean(),
-      this.row
-        .find({ jobId }, { jobId: false })
-        .sort({ num: ord })
-        .skip(offset)
-        .limit(limit)
-        .lean(),
-    ]);
-    if (!info?.columns.length) return;
-
-    return result.map(({ data }) =>
-      mapped
-        ? Object.fromEntries(data.map((v, i) => [info.columns[i], v]))
-        : data,
-    );
-  }
-
-  async getErrors(
-    jobId: string,
-    { limit, offset, desc }: Sort,
-  ): Promise<CellError[] | undefined> {
-    const ord = desc ? -1 : 1;
-
-    const errs = await this.err
-      .find({ jobId }, { jobId: false })
-      .sort({ row: ord, col: ord })
-      .skip(offset)
-      .limit(limit)
+  async getJob(jobId: string): Promise<Job | undefined> {
+    const job = await this.job
+      .findOne({ jobId }, { _id: false, __v: false, jobId: false })
       .lean();
-    if (!errs) return;
+    if (!job) return;
+    return { ...job };
+  }
 
-    return errs.map(({ row, col }) => ({ row, col }));
+  async storeRows(jobId: string, rows: Row[]): Promise<void> {
+    await this.row.insertMany(
+      rows.map(({ num, values }) => ({ jobId, num, values })),
+      { ordered: false },
+    );
+  }
+
+  async storeCellErrs(jobId: string, cellErrs: CellErr[]): Promise<void> {
+    await this.cellErr.insertMany(
+      cellErrs.map(({ col, row }) => ({ jobId, col, row })),
+      { ordered: false },
+    );
+  }
+
+  async countRows(jobId: string): Promise<number> {
+    return await this.row.countDocuments({ jobId });
+  }
+
+  async countCellErrs(jobId: string): Promise<number> {
+    return await this.cellErr.countDocuments({ jobId });
+  }
+
+  async getRows(jobId: string, sort: Sort): Promise<Row[]> {
+    const ord = sort.desc ? -1 : 1;
+
+    const rows = await this.row
+      .find({ jobId }, { _id: false, __v: false, jobId: false })
+      .sort({ num: ord })
+      .limit(sort.limit)
+      .skip(sort.offset)
+      .lean();
+
+    return rows as Row[];
+  }
+
+  async getCellErrs(jobId: string, sort: Sort): Promise<CellErr[]> {
+    const ord = sort.desc ? -1 : 1;
+
+    const cellErrs = await this.cellErr
+      .find({ jobId }, { _id: false, __v: false, jobId: false })
+      .sort({ row: ord })
+      .limit(sort.limit)
+      .skip(sort.offset)
+      .lean();
+
+    return cellErrs as CellErr[];
   }
 }

@@ -1,6 +1,6 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { AppErr, ERR_CODE } from 'src/domain/errors';
+import { AppErr, ERR_CODE } from 'src/domain/errs';
 
 // -- Error mapper
 const statusMap: Record<ERR_CODE, number> = {
@@ -11,19 +11,19 @@ const statusMap: Record<ERR_CODE, number> = {
   CONFLICT: 409,
 };
 
-const toHttpError = (e: unknown) => {
-  const err = e instanceof AppErr ? e : AppErr.unknown(e);
+const toHttpError = (err: unknown) => {
+  const appErr = err instanceof AppErr ? err : AppErr.unknown(err);
 
-  const status = statusMap[err.code];
-  const code = err.code as string;
-  const error = err.message;
+  const status = statusMap[appErr.code];
+  const code = appErr.code as string;
+  const error = appErr.message;
 
   return { error, status, code };
 };
 
 // extends http context
 export interface ResponseExt extends Response {
-  sendErr(e: unknown): void;
+  sendErr(err: unknown): void;
 }
 
 const implResponseExt = (res: Response): ResponseExt => {

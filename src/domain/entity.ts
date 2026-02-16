@@ -1,29 +1,32 @@
-export interface JobInfo {
+export interface Job {
   jobId: string;
   status: STATUS;
-  error?: string;
+  cols: string[];
+  totalRows: number;
+  rowsCount: number;
+  cellErrCount: number;
 }
 
-export interface Data {
-  columns: string[];
-  rows: Row[];
-  errors: CellError[];
-}
+export type JobAsProcess = Omit<Job, 'jobId' | 'status'>;
+export type JobAsDone = Omit<Job, 'jobId' | 'status' | 'cols' | 'totalRows'>;
 
-// nested
 export enum STATUS {
   DONE = 'done',
   PROCESSING = 'processing',
   PENDING = 'pending',
-  ERROR = 'error',
+}
+
+export interface RawRow {
+  index: number;
+  values: unknown[];
 }
 
 export interface Row {
   num: number;
-  data: unknown[];
+  values: unknown[];
 }
 
-export interface CellError {
+export interface CellErr {
   col: number;
   row: number;
 }

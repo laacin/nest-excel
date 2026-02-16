@@ -1,71 +1,13 @@
-import { FormatInfo, FormatType } from './format';
-import { Row, CellError } from '../entity';
-import { AppErr } from '../errors';
+export type ValidTyp = 'string' | 'number' | 'boolean' | 'date';
 
-interface ResolveRowParams {
-  fmt: FormatInfo[];
-  colIndex: number[];
-  rowIdx: number;
-  rowData: unknown[];
-}
-
-interface ResolveRowReturn {
-  row: Row;
-  errs?: CellError[];
-}
-
-export const resolveRow = ({
-  fmt,
-  colIndex,
-  rowIdx,
-  rowData,
-}: ResolveRowParams): ResolveRowReturn => {
-  const result: unknown[] = [];
-  const errs: CellError[] = [];
-
-  for (let i = 0; i < fmt.length; i++) {
-    const cellValue = rowData[colIndex[i]];
-    const info = fmt[i];
-
-    if (info.isRequired && cellValue === undefined) {
-      errs.push({
-        col: i + 1, // <- starts at 1, idx is 0-based;
-        row: rowIdx + 1, // same here
-      });
-      result.push(null);
-      continue;
-    }
-
-    const parsed = parseTyp(info.isArray, info.typ, cellValue);
-    if (typeof parsed !== info.typ && !info.isArray && parsed !== null) {
-      throw AppErr.internal(
-        `parser error: expect: ${info.typ}, have: ${typeof parsed}, raw: ${typeof cellValue}`,
-      );
-    }
-
-    if (parsed === null) {
-      errs.push({
-        col: i + 1,
-        row: rowIdx + 1,
-      });
-    }
-    result.push(parsed);
-  }
-
-  const row: Row = {
-    num: rowIdx + 1,
-    data: result,
-  };
-
-  return { row, errs };
+export const isValidTyp = (v: string): v is ValidTyp => {
+  return v === 'string' || v === 'number' || v === 'boolean' || v === 'date';
 };
 
-// -- Parsers
 // TODO: support date
-
-const parseTyp = (
+export const parseTyp = (
   isArray: boolean,
-  expect: FormatType,
+  expect: ValidTyp,
   v: unknown,
 ): unknown => {
   switch (expect) {

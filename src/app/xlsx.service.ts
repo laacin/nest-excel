@@ -1,44 +1,42 @@
-import { Injectable } from '@nestjs/common';
-import { readFile, stream, utils } from 'xlsx';
+import { RawRow } from 'src/domain/entity';
+import XLSX from 'xlsx';
 
-@Injectable()
-export class XlsxService {
-  getColumns(filename: string): string[] {
-    const wb = readFile(filename);
+export class Sheet {
+  private sheet: XLSX.WorkSheet;
+  private range: XLSX.Range;
+
+  constructor(filename: string) {
+    const wb = XLSX.readFile(filename);
     const sheet = wb.Sheets[wb.SheetNames[0]];
-    const cols = stream.to_json(sheet, { header: 1 }) as unknown[][];
-    return cols.length ? (cols[0] as string[]) : [];
+    this.range = XLSX.utils.decode_range(sheet['!ref']!);
+    this.sheet = sheet;
   }
 
-  async stream(
-    filename: string,
-    batchSize: number,
-    onBatch: (batch: unknown[][]) => Promise<void>,
-  ) {
-    const wb = readFile(filename);
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-
-    const data = stream.to_json(sheet, { header: 1 }) as AsyncIterable<
-      unknown[][]
-    >;
-    let batch: unknown[][] = [];
-
-    for await (const row of data) {
-      batch.push(row);
-
-      if (batch.length == batchSize) {
-        await onBatch(batch);
-        batch = [];
-      }
-    }
-
-    if (batch.length) await onBatch(batch);
+  getTotalRows(): number {
+    return this.range.e.r;
   }
 
-  // unused
-  read(filename: string): unknown[][] {
-    const wb = readFile(filename);
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    return utils.sheet_to_json(sheet, { header: 1 });
+  getRawCols(): unknown[] {
+    const rawCols = XLSX.utils.sheet_to_json(this.sheet, {
+      header: 1,
+      range: 0,
+    })[0] as unknown[];
+
+    return rawCols;
+  }
+
+  getRawRows(limit: number, offset: number): RawRow[] {
+    const start = offset + 1;
+    const end = Math.min(limit + start - 1, this.range.e.r);
+
+    const result: unknown[][] = XLSX.utils.sheet_to_json(this.sheet, {
+      header: 1,
+      range: { s: { r: start, c: 0 }, e: { r: end, c: this.range.e.c } },
+    });
+
+    return result.map(
+      // RawRow index is 0-based, that's why i use 'i + offset' instead of 'i + start'
+      (values, i) => ({ index: i + offset, values }) satisfies RawRow,
+    );
   }
 }

@@ -1,4 +1,3 @@
-import { XlsxService } from './xlsx.service';
 import { UseCase } from './usecases.app';
 import { DynamicModule, Module } from '@nestjs/common';
 import { AppConfig, BATCH_SIZE } from './config.app';
@@ -9,11 +8,7 @@ export class AppModule {
     return {
       module: AppModule,
       imports: cfg.dependencies,
-      providers: [
-        XlsxService,
-        UseCase,
-        { provide: BATCH_SIZE, useValue: cfg.batchSize },
-      ],
+      providers: [UseCase, { provide: BATCH_SIZE, useValue: cfg.batchSize }],
       exports: [UseCase],
     };
   }

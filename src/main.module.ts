@@ -7,10 +7,10 @@ import { Configuration, resolveConfig } from './config';
 
 @Module({})
 export class MainModule {
-  static forRoot(cfg: Configuration): DynamicModule {
+  static async forRootAsync(cfg: Configuration): Promise<DynamicModule> {
     const { appCfg, mongoUrl, amqpUrl } = resolveConfig(cfg);
 
-    const infra = InfraModule.forRoot({ mongoUrl, amqpUrl });
+    const infra = await InfraModule.forRootAsync({ mongoUrl, amqpUrl });
     const app = AppModule.forRoot({ dependencies: [infra], ...appCfg });
     const iface = InterfaceModule.forRoot({ dependencies: [app] });
 

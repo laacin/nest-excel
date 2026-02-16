@@ -1,6 +1,6 @@
 import { DynamicModule } from '@nestjs/common';
 
-export const QUEUE_JOB_NAME = 'job.queue';
+export const QUEUE_NAME = 'queue.name';
 
 // tokens
 export const BATCH_SIZE = 'BATCH_SIZE';

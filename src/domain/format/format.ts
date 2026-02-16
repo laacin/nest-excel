@@ -1,23 +1,25 @@
-import { AppErr, FmtErr, FileErr } from '../errors';
+import { CellErr, RawRow, Row } from '../entity';
+import { AppErr, FmtErr, FileErr } from '../errs';
+import { ValidTyp, isValidTyp, parseTyp } from './parsers';
 
-export type FormatType = 'string' | 'number' | 'boolean' | 'date';
-
-export interface FormatInfo {
+export interface FormatRules {
   name: string;
   isRequired: boolean;
   isArray: boolean;
-  typ: FormatType;
+  typ: ValidTyp;
 }
 
 export class Format {
-  private info: FormatInfo[];
+  private rules: FormatRules[];
+  private cols: string[]; // valid columns
+  private index: number[];
 
-  constructor(input: string) {
+  constructor(formatString: string, rawCols?: unknown[]) {
     try {
-      const json = JSON.parse(input) as Record<string, unknown>;
+      const formatJson = JSON.parse(formatString) as Record<string, unknown>;
+      const rules: FormatRules[] = [];
 
-      const fmt: FormatInfo[] = [];
-      Object.entries(json).forEach(([key, val]) => {
+      Object.entries(formatJson).forEach(([key, val]) => {
         if (typeof val !== 'string') {
           throw FmtErr.noStringType();
         }
@@ -31,39 +33,82 @@ export class Format {
         const typ = isArray ? t.replace(/^array<|>$/g, '') : t;
 
         if (!name) throw FmtErr.emptyColumn();
-        if (!isFormatType(typ)) {
+        if (!isValidTyp(typ)) {
           throw FmtErr.invalidType(typ);
         }
 
-        fmt.push({ name, isRequired, isArray, typ });
+        rules.push({ name, isRequired, isArray, typ });
       });
 
-      this.info = fmt;
+      this.rules = rules;
+      if (rawCols) this.loadRawCols(rawCols);
     } catch (e) {
       throw e instanceof AppErr ? e : FmtErr.invalidFormat();
     }
   }
 
-  getColIndex(cols: string[]): number[] {
-    const index: number[] = [];
+  resolveRawRow(rawRow: RawRow): { row: Row; cellErrs?: CellErr[] } {
+    const row: Row = { num: rawRow.index + 1, values: [] };
+    const cellErrs: CellErr[] = [];
 
-    this.info.forEach((info) => {
-      const idx = cols.indexOf(info.name);
-      if (idx < 0 && info.isRequired) {
-        throw FileErr.missingRequiredCol(info.name);
+    for (let i = 0; i < this.rules.length; i++) {
+      const value = rawRow.values[this.index[i]];
+      const rule = this.rules[i];
+
+      // CellErr helper function
+      const addCellErr = () => {
+        cellErrs.push({
+          col: i + 1, // <- starts at 1; index is 0-based
+          row: rawRow.index + 1, // same here
+        });
+        row.values.push(null);
+      };
+
+      if (value === undefined) {
+        if (rule.isRequired) {
+          addCellErr();
+          continue;
+        }
+
+        row.values.push(undefined);
+        continue;
       }
-      index.push(idx);
+
+      const parsed = parseTyp(rule.isArray, rule.typ, value);
+      if (parsed === null) {
+        addCellErr();
+        continue;
+      }
+
+      row.values.push(parsed);
+    }
+
+    return { row, cellErrs };
+  }
+
+  // lazy load rawCols
+  loadRawCols(rawCols: unknown[]) {
+    if (rawCols.length < 1) throw FileErr.noCols();
+
+    const index: number[] = [];
+    this.rules.forEach((rule) => {
+      const i = rawCols.indexOf(rule.name);
+
+      if (i < 0 && rule.isRequired) {
+        throw FileErr.missingRequiredCol(rule.name);
+      }
+
+      index.push(i);
     });
 
-    return index;
+    const cols = index.map((i) => rawCols[i] as string);
+
+    this.cols = cols;
+    this.index = index;
   }
 
-  getInfo(): FormatInfo[] {
-    return this.info;
+  // returns the valid columns name in order
+  getCols(): string[] {
+    return this.cols;
   }
 }
-
-// helpers;
-const isFormatType = (v: string): v is FormatType => {
-  return v === 'string' || v === 'number' || v === 'boolean' || v === 'date';
-};

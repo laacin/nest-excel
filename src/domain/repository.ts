@@ -1,46 +1,42 @@
-import { CellError, Data, JobInfo } from './entity';
+import type { CellErr, Job, JobAsProcess, JobAsDone, Row } from './entity';
 
 export const PERSIST = 'PERSIST';
 export interface PersistRepository {
-  storeJob(jobId: string): Promise<void>;
-  getJob(jobId: string): Promise<JobInfo | undefined>;
+  setAsPending(jobId: string): Promise<void>;
+  setAsProcessing(jobId: string, updates: JobAsProcess): Promise<void>;
+  setAsDone(jobId: string, updates: JobAsDone): Promise<void>;
 
-  setAsProcessing(jobId: string): Promise<void>;
-  setAsDone(jobId: string): Promise<void>;
-  setAsError(jobId: string, reason?: string): Promise<void>;
+  getJob(jobId: string): Promise<Job | undefined>;
 
-  storeData(
-    jobId: string,
-    data: Partial<Data>,
-    exists?: boolean,
-  ): Promise<void>;
+  storeRows(jobId: string, rows: Row[]): Promise<void>;
+  storeCellErrs(jobId: string, cellErrs: CellErr[]): Promise<void>;
 
-  getRows(
-    jobId: string,
-    sort: Sort,
-    mapped?: boolean,
-  ): Promise<unknown[] | undefined>;
-  getErrors(jobId: string, sort: Sort): Promise<CellError[] | undefined>;
+  countRows(jobId: string): Promise<number>;
+  countCellErrs(jobId: string): Promise<number>;
+
+  getRows(jobId: string, sort: Sort): Promise<Row[]>;
+  getCellErrs(jobId: string, sort: Sort): Promise<CellErr[]>;
 }
 
+export const MESSAGING = 'MESSAGING';
+export interface MessagingService {
+  storeQueue(queue: string): Promise<void>;
+  storeConsumers(consumers: Consumer[]): Promise<void>;
+  publish(queue: string, data: unknown): void;
+}
+
+// types
 export interface Sort {
   limit: number;
   offset: number;
   desc?: boolean;
 }
 
-export const QUEUE = 'QUEUE';
-export interface QueueService<T> {
-  newJob(job: string): Promise<void>;
-  publish(job: string, data: T): void;
-  consumer(
-    job: string,
-    work: (data: T) => Promise<void>,
-    onErr?: OnConsumerErr<T>,
-  ): Promise<void>;
-}
-
-export interface OnConsumerErr<T> {
-  requeue?: boolean;
-  fallback?: (e: unknown, data: T) => Promise<void>;
+export interface Consumer {
+  queue: string;
+  work: (data: unknown) => Promise<void>;
+  onErr?: {
+    fallback?: (err: unknown, data: unknown) => Promise<void>;
+    requeue?: boolean;
+  };
 }

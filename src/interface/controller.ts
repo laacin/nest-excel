@@ -2,11 +2,9 @@ import { Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { UseCase } from 'src/app/usecases.app';
 import { File } from './interceptor';
 import { type HttpContext, UseContext } from './http.interface';
-import { AppErr } from 'src/domain/errors';
+import { AppErr } from 'src/domain/errs';
 
 const FILE_DESTINATION = 'tmp';
-
-// TODO: parse no string values
 
 @Controller()
 export class Controllers {
@@ -27,8 +25,8 @@ export class Controllers {
       );
 
       res.status(201).send(response);
-    } catch (e) {
-      res.sendErr(e);
+    } catch (err) {
+      res.sendErr(err);
     }
   }
 
@@ -37,8 +35,8 @@ export class Controllers {
     try {
       const response = await this.use.handleStatusRequest(id);
       res.status(200).send(response);
-    } catch (e) {
-      res.sendErr(e);
+    } catch (err) {
+      res.sendErr(err);
     }
   }
 
@@ -60,12 +58,12 @@ export class Controllers {
       });
 
       res.status(200).send(response);
-    } catch (e) {
-      res.sendErr(e);
+    } catch (err) {
+      res.sendErr(err);
     }
   }
 
-  @Get('/errors/:id')
+  @Get('/errs/:id')
   async getErrors(
     @UseContext() { res }: HttpContext,
     @Param('id') id: string,
@@ -75,15 +73,15 @@ export class Controllers {
       const { page, take, desc } = query;
 
       const response = await this.use.handleDataRequest(id, {
-        which: 'errors',
+        which: 'cellErrs',
         page: page as number,
         take: take as number,
         desc: desc as boolean,
       });
 
       res.status(200).send(response);
-    } catch (e) {
-      res.sendErr(e);
+    } catch (err) {
+      res.sendErr(err);
     }
   }
 }

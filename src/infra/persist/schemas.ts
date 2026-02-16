@@ -1,25 +1,22 @@
 import { Schema } from 'mongoose';
-import {
-  type CellError,
-  type Row,
-  type JobInfo,
-  STATUS,
-} from 'src/domain/entity';
+import { type CellErr, type Row, type Job, STATUS } from 'src/domain/entity';
 
-export const JobSchema = new Schema<JobInfo & { columns: string[] }>({
+export const JobSchema = new Schema<Job>({
   jobId: { type: String, required: true, index: { unique: true } },
   status: { type: String, enum: Object.values(STATUS), required: true },
-  columns: { type: [String] },
-  error: { type: String },
+  cols: { type: [String], default: [] },
+  totalRows: { type: Number, default: 0 },
+  rowsCount: { type: Number, default: 0 },
+  cellErrCount: { type: Number, default: 0 },
 });
 
 export const RowSchema = new Schema<Row & { jobId: string }>({
   jobId: { type: String, required: true, index: true },
   num: { type: Number, required: true },
-  data: { type: [Schema.Types.Mixed], default: [] },
+  values: { type: [Schema.Types.Mixed], default: [] },
 });
 
-export const ErrSchema = new Schema<CellError & { jobId: string }>({
+export const CellErrSchema = new Schema<CellErr & { jobId: string }>({
   jobId: { type: String, required: true, index: true },
   col: { type: Number, required: true },
   row: { type: Number, required: true },
