@@ -12,6 +12,7 @@ export const parseTyp = (
 ): unknown => {
   switch (expect) {
     case 'string':
+      if (isArray) return parseArrayString(v);
       return parseString(v);
 
     case 'number':
@@ -30,6 +31,32 @@ const parseString = (v: unknown): string | null => {
   return String(v as unknown);
 };
 
+const parseArrayString = (v: unknown): string[] | null => {
+  const parse = (val: unknown): string[] | null => {
+    if (typeof val === 'string') {
+      const arr = val.split(',').map((x) => x.trim());
+      return arr;
+    }
+
+    const arr = parseString(val);
+    return arr === null ? null : [arr];
+  };
+
+  if (Array.isArray(v)) {
+    let result: string[] | null = null;
+
+    for (const val of v) {
+      const r = parse(val);
+      if (r === null) return null;
+
+      if (result === null) result = [];
+      result.push(...r);
+    }
+    return result;
+  }
+  return parse(v);
+};
+
 const parseNumber = (v: unknown): number | null => {
   const x = Number(v);
   return Number.isNaN(x) ? null : x;
@@ -46,7 +73,6 @@ const parseArrayNumber = (v: unknown, ordered?: boolean): number[] | null => {
   };
 
   let result: number[] | null = null;
-
   if (Array.isArray(v)) {
     for (const val of v) {
       const r = parse(val);
@@ -85,6 +111,7 @@ const parseArrayBool = (v: unknown): boolean[] | null => {
       const arr = val.split(',').map(parseBool);
       return arr.some((x) => x === null) ? null : (arr as boolean[]);
     }
+
     const x = parseBool(val);
     return x === null ? null : [x];
   };
@@ -94,12 +121,11 @@ const parseArrayBool = (v: unknown): boolean[] | null => {
 
     for (const val of v) {
       const r = parse(val);
-      if (!r) continue;
+      if (r === null) return null;
 
       if (result === null) result = [];
       result.push(...r);
     }
-
     return result;
   }
 
