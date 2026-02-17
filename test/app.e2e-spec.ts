@@ -75,8 +75,8 @@ describe('AppController (e2e)', () => {
         await downDB(app);
         break;
       }
-      if (status === 'done') return;
 
+      if (status === 'done') return;
       await sleep(2000);
     }
 
