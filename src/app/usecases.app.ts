@@ -1,5 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { Sheet } from './xlsx.service';
+import { Sheet } from './services/xlsx.service';
 import { Format } from 'src/domain/format';
 import { CellErr, Row, STATUS } from 'src/domain/entity';
 import { PERSIST, MESSAGING } from 'src/domain/repository';
@@ -8,7 +8,7 @@ import type {
   MessagingService,
   Sort,
 } from 'src/domain/repository';
-import { BATCH_SIZE } from './config.app';
+import { BATCH_SIZE, QUEUE_NAME } from './config.app';
 import { AppErr, PersistErr, FileErr } from 'src/domain/errs';
 
 interface QueueData {
@@ -16,8 +16,6 @@ interface QueueData {
   filename: string;
   formatString: string;
 }
-
-const PROCESS_QUEUE = 'process.queue';
 
 type DataRequest =
   | {
@@ -40,13 +38,14 @@ export class UseCase implements OnModuleInit {
     @Inject(PERSIST) private readonly persist: PersistRepository,
     @Inject(MESSAGING) private readonly msg: MessagingService,
     @Inject(BATCH_SIZE) private readonly BATCH_SIZE: number,
+    @Inject(QUEUE_NAME) private readonly QUEUE_NAME: string,
   ) {}
 
   async onModuleInit() {
-    await Promise.all([this.msg.storeQueue(PROCESS_QUEUE)]);
+    await Promise.all([this.msg.storeQueue(this.QUEUE_NAME)]);
     await this.msg.storeConsumers([
       {
-        queue: PROCESS_QUEUE,
+        queue: this.QUEUE_NAME,
         work: (data: QueueData) => this.processJob(data),
         onErr: { requeue: true },
       },
@@ -64,7 +63,7 @@ export class UseCase implements OnModuleInit {
       const jobId = crypto.randomUUID();
 
       await this.persist.setAsPending(jobId);
-      this.msg.publish(PROCESS_QUEUE, { jobId, filename, formatString });
+      this.msg.publish(this.QUEUE_NAME, { jobId, filename, formatString });
 
       return { jobId };
     } catch (err) {

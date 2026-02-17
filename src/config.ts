@@ -21,11 +21,13 @@ interface RabbitMQConfig {
 
 interface AppConfig {
   batchSize?: number;
+  queueName?: string;
 }
 
 // defaults
 const DEFAULT_APP: Required<AppConfig> = {
   batchSize: 10000,
+  queueName: 'queue.process',
 };
 
 const DEFAULT_MONGO: MongoConfig = {
@@ -52,6 +54,7 @@ export const resolveConfig = (cfg: Configuration): ResolvedConfig => {
   const appCfg: Required<AppConfig> = cfg.app
     ? {
         batchSize: cfg.app.batchSize ?? DEFAULT_APP.batchSize,
+        queueName: cfg.app.queueName ?? DEFAULT_APP.queueName,
       }
     : DEFAULT_APP;
 
