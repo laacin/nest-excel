@@ -14,6 +14,8 @@ export class RabbitMqImpl implements OnModuleDestroy, MessagingService {
   constructor(private guard: () => Promise<boolean>) {}
 
   async onModuleDestroy() {
+    await this.stopConsumers();
+
     await this.ch.close();
     await this.conn.close();
   }
@@ -23,33 +25,28 @@ export class RabbitMqImpl implements OnModuleDestroy, MessagingService {
     this.ch = await this.conn.createChannel();
   }
 
-  stopConsumers(): void {
-    this.consumers.forEach(({ tag }, queue) => {
+  async stopConsumers(): Promise<void> {
+    for (const [queue, { tag, ...rest }] of this.consumers) {
       if (!tag) return;
 
-      void this.ch.cancel(tag).then(() => {
-        const c = this.consumers.get(queue);
-        if (c) this.consumers.set(queue, { ...c, tag: undefined });
-      });
-    });
+      await this.ch.cancel(tag);
+      this.consumers.set(queue, { ...rest, tag: undefined });
+    }
   }
 
-  runConsumers(): void {
-    this.consumers.forEach(({ work, onErr, tag }, queue) => {
+  async runConsumers(): Promise<void> {
+    for (const [queue, { tag, work, onErr }] of this.consumers) {
       if (tag) return;
 
-      void (async () => {
-        const { consumerTag } = await this.ch.consume(queue, (msg) => {
-          if (!msg) return;
+      const { consumerTag } = await this.ch.consume(queue, (msg) => {
+        if (!msg) return;
 
-          const data = JSON.parse(msg.content.toString()) as unknown;
-          void this.handleWork(msg, data, { work, onErr });
-        });
+        const data = JSON.parse(msg.content.toString()) as unknown;
+        void this.handleWork(msg, data, { work, onErr });
+      });
 
-        const c = this.consumers.get(queue);
-        if (c) this.consumers.set(queue, { ...c, tag: consumerTag });
-      })();
-    });
+      this.consumers.set(queue, { tag: consumerTag, work, onErr });
+    }
   }
 
   private async handleWork(

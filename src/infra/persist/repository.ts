@@ -2,7 +2,6 @@ import {
   CellErr,
   Job,
   JobAsDone,
-  JobAsError,
   JobAsProcess,
   Row,
   STATUS,

@@ -1,7 +1,16 @@
 import { RawRow } from 'src/domain/entity';
 import XLSX from 'xlsx';
 
-export class Sheet {
+// abstraction
+export type ISheetConstructor = new (filename: string) => ISheet;
+export interface ISheet {
+  getTotalRows(): number;
+  getRawCols(): unknown[];
+  getRawRows(limit: number, offset: number): RawRow[];
+}
+
+// impl
+export class Sheet implements ISheet {
   private sheet: XLSX.WorkSheet;
   private range: XLSX.Range;
 

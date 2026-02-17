@@ -1,5 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { Sheet } from './services/xlsx.service';
+import type { ISheetConstructor } from './services/xlsx.service';
 import { Format } from 'src/domain/format';
 import { CellErr, Row, STATUS } from 'src/domain/entity';
 import { PERSIST, MESSAGING } from 'src/domain/repository';
@@ -8,7 +8,7 @@ import type {
   MessagingService,
   Sort,
 } from 'src/domain/repository';
-import { BATCH_SIZE, QUEUE_NAME } from './config.app';
+import { BATCH_SIZE, QUEUE_NAME, SHEET_CLASS } from './config.app';
 import { AppErr, PersistErr, FileErr } from 'src/domain/errs';
 
 interface QueueData {
@@ -39,6 +39,7 @@ export class UseCase implements OnModuleInit {
     @Inject(MESSAGING) private readonly msg: MessagingService,
     @Inject(BATCH_SIZE) private readonly BATCH_SIZE: number,
     @Inject(QUEUE_NAME) private readonly QUEUE_NAME: string,
+    @Inject(SHEET_CLASS) private readonly sheet: ISheetConstructor,
   ) {}
 
   async onModuleInit() {
@@ -131,14 +132,15 @@ export class UseCase implements OnModuleInit {
     formatString,
   }: QueueData): Promise<void> {
     try {
-      const [rowsCount, cellErrCount] = await Promise.all([
+      const promise = Promise.all([
         this.persist.countRows(jobId),
         this.persist.countCellErrs(jobId),
       ]);
 
-      const sheet = new Sheet(filename);
+      const sheet = new this.sheet(filename);
       const fmt = new Format(formatString, sheet.getRawCols());
       const totalRows = sheet.getTotalRows();
+      const [rowsCount, cellErrCount] = await promise;
 
       await this.persist.setAsProcessing(jobId, {
         cols: fmt.getCols(),
