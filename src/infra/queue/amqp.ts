@@ -27,7 +27,7 @@ export class RabbitMqImpl implements OnModuleDestroy, MessagingService {
 
   async stopConsumers(): Promise<void> {
     for (const [queue, { tag, ...rest }] of this.consumers) {
-      if (!tag) return;
+      if (!tag) continue;
 
       await this.ch.cancel(tag);
       this.consumers.set(queue, { ...rest, tag: undefined });
@@ -36,7 +36,7 @@ export class RabbitMqImpl implements OnModuleDestroy, MessagingService {
 
   async runConsumers(): Promise<void> {
     for (const [queue, { tag, work, onErr }] of this.consumers) {
-      if (tag) return;
+      if (tag) continue;
 
       const { consumerTag } = await this.ch.consume(queue, (msg) => {
         if (!msg) return;
@@ -60,6 +60,8 @@ export class RabbitMqImpl implements OnModuleDestroy, MessagingService {
     } catch (err) {
       try {
         await onErr?.fallback?.(err, data);
+      } catch {
+        // end or requeue
       } finally {
         this.ch.nack(msg, false, onErr?.requeue ?? false);
       }

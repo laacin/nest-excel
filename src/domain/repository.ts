@@ -1,10 +1,19 @@
-import type { CellErr, Job, JobAsProcess, JobAsDone, Row } from './entity';
+import type {
+  CellErr,
+  Job,
+  JobAsDone,
+  JobAsError,
+  JobAsPending,
+  JobAsProcessing,
+  Row,
+} from './entity';
 
 export const PERSIST = 'PERSIST';
 export interface PersistRepository {
-  setAsPending(jobId: string): Promise<void>;
-  setAsProcessing(jobId: string, updates: JobAsProcess): Promise<void>;
-  setAsDone(jobId: string, updates: JobAsDone): Promise<void>;
+  setAsPending(job: JobAsPending): Promise<void>;
+  setAsProcessing(job: JobAsProcessing): Promise<void>;
+  setAsDone(job: JobAsDone): Promise<void>;
+  setAsError(job: JobAsError): Promise<void>;
 
   getJob(jobId: string): Promise<Job | undefined>;
 

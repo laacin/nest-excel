@@ -1,19 +1,41 @@
-export interface Job {
+export type Job = JobAsPending | JobAsProcessing | JobAsDone | JobAsError;
+
+export interface JobAsPending {
   jobId: string;
-  status: STATUS;
+  status: STATUS.PENDING;
+}
+
+export interface JobAsProcessing {
+  jobId: string;
+  status: STATUS.PROCESSING;
   cols: string[];
   totalRows: number;
   rowCount: number;
   cellErrCount: number;
 }
 
-export type JobAsProcess = Omit<Job, 'jobId' | 'status'>;
-export type JobAsDone = Omit<Job, 'jobId' | 'status' | 'cols' | 'totalRows'>;
+export interface JobAsDone {
+  jobId: string;
+  status: STATUS.DONE;
+  cols: string[];
+  totalRows: number;
+  rowCount: number;
+  cellErrCount: number;
+  finishedAt: Date;
+}
+
+export interface JobAsError {
+  jobId: string;
+  status: STATUS.ERROR;
+  reason: string;
+  finishedAt: Date;
+}
 
 export enum STATUS {
   DONE = 'done',
   PROCESSING = 'processing',
   PENDING = 'pending',
+  ERROR = 'error',
 }
 
 export interface RawRow {

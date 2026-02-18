@@ -7,8 +7,13 @@ import type {
   PersistRepository,
   MessagingService,
 } from 'src/domain/repository';
-import { BATCH_SIZE, QUEUE_NAME, SHEET_CLASS } from './config.app';
-import { AppErr, JobErr } from 'src/domain/errs';
+import {
+  BATCH_SIZE,
+  QUEUE_NAMES,
+  type QueueNames,
+  SHEET_CLASS,
+} from './config.app';
+import { AppErr, ERR_CODE, JobErr } from 'src/domain/errs';
 
 // type definitions
 interface PublishData {
@@ -38,18 +43,21 @@ export class JobProcessingUseCase implements OnModuleInit {
   constructor(
     @Inject(PERSIST) private readonly persist: PersistRepository,
     @Inject(MESSAGING) private readonly msg: MessagingService,
-    @Inject(BATCH_SIZE) private readonly BATCH_SIZE: number,
-    @Inject(QUEUE_NAME) private readonly QUEUE_NAME: string,
+    @Inject(BATCH_SIZE) private readonly batchSize: number,
+    @Inject(QUEUE_NAMES) private readonly queueNames: QueueNames,
     @Inject(SHEET_CLASS) private readonly sheet: ISheetConstructor,
   ) {}
 
   async onModuleInit() {
-    await Promise.all([this.msg.storeQueue(this.QUEUE_NAME)]);
+    await Promise.all([this.msg.storeQueue(this.queueNames.process)]);
     await this.msg.storeConsumers([
       {
-        queue: this.QUEUE_NAME,
+        queue: this.queueNames.process,
         work: (data: PublishData) => this.processJob(data),
-        onErr: { requeue: true },
+        onErr: {
+          fallback: (err, data: PublishData) => this.processFails(err, data),
+          requeue: true,
+        },
       },
     ]);
   }
@@ -62,8 +70,8 @@ export class JobProcessingUseCase implements OnModuleInit {
       new Format(formatString); // validate format
       const jobId = crypto.randomUUID();
 
-      await this.persist.setAsPending(jobId);
-      this.msg.publish(this.QUEUE_NAME, {
+      await this.persist.setAsPending({ jobId, status: STATUS.PENDING });
+      this.msg.publish(this.queueNames.process, {
         jobId,
         filename,
         formatString,
@@ -99,6 +107,9 @@ export class JobProcessingUseCase implements OnModuleInit {
     try {
       const job = await this.persist.getJob(jobId);
       if (!job) throw JobErr.notFound();
+      if (job.status === STATUS.PENDING || job.status === STATUS.ERROR) {
+        throw JobErr.unavailable();
+      }
 
       const rows = await this.persist.getRows(jobId, sort);
       return rows.map(({ values }) =>
@@ -137,7 +148,9 @@ export class JobProcessingUseCase implements OnModuleInit {
       const totalRows = sheet.getTotalRows();
       const [rowCount, cellErrCount] = await initialCountsPromise;
 
-      await this.persist.setAsProcessing(jobId, {
+      await this.persist.setAsProcessing({
+        jobId,
+        status: STATUS.PROCESSING,
         cols: fmt.getCols(),
         totalRows,
         rowCount,
@@ -146,7 +159,7 @@ export class JobProcessingUseCase implements OnModuleInit {
 
       let offset = rowCount;
       while (offset < totalRows) {
-        const rawRows = sheet.getRawRows(this.BATCH_SIZE, offset);
+        const rawRows = sheet.getRawRows(this.batchSize, offset);
         if (rawRows.length === 0) {
           throw AppErr.internal('no raw rows returned unexpectedly');
         }
@@ -181,9 +194,35 @@ export class JobProcessingUseCase implements OnModuleInit {
         );
       }
 
-      await this.persist.setAsDone(jobId, {
+      await this.persist.setAsDone({
+        jobId,
+        status: STATUS.DONE,
+        cols: fmt.getCols(),
+        totalRows: totalRows,
         rowCount: rowCountFinal,
         cellErrCount: cellErrCountFinal,
+        finishedAt: new Date(),
+      });
+    } catch (err) {
+      throw err instanceof AppErr ? err : AppErr.unknown(err);
+    }
+  }
+
+  private async processFails(
+    err: unknown,
+    { jobId }: PublishData,
+  ): Promise<void> {
+    try {
+      const appErr = err instanceof AppErr ? err : AppErr.unknown(err);
+      if (appErr.code === ERR_CODE.INTERNAL) {
+        throw err; // requeue
+      }
+
+      await this.persist.setAsError({
+        jobId,
+        status: STATUS.ERROR,
+        reason: appErr.message,
+        finishedAt: new Date(),
       });
     } catch (err) {
       throw err instanceof AppErr ? err : AppErr.unknown(err);

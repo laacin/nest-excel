@@ -20,7 +20,7 @@ export class AppErr extends Error {
   }
 
   static unknown(_problem: unknown) {
-    //console.error(problem);
+    // console.error(_problem);
     return new AppErr(ERR_CODE.INTERNAL, 'Something went wrong');
   }
 }

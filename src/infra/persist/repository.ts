@@ -2,19 +2,26 @@ import {
   CellErr,
   Job,
   JobAsDone,
-  JobAsProcess,
+  JobAsError,
+  JobAsProcessing,
+  JobAsPending,
   Row,
-  STATUS,
 } from 'src/domain/entity';
 import { connect, model, Model, Mongoose } from 'mongoose';
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { PersistRepository, Sort } from 'src/domain/repository';
-import { JobSchema, RowSchema, CellErrSchema } from './schemas';
+import {
+  JobSchema,
+  RowSchema,
+  CellErrSchema,
+  JobPersist,
+  mapJob,
+} from './schemas';
 
 @Injectable()
 export class MongoImpl implements PersistRepository, OnModuleDestroy {
   private conn: Mongoose;
-  private job: Model<Job>;
+  private job: Model<JobPersist>;
   private row: Model<Row & { jobId: string }>;
   private cellErr: Model<CellErr & { jobId: string }>;
 
@@ -60,22 +67,20 @@ export class MongoImpl implements PersistRepository, OnModuleDestroy {
   }
 
   // PersistRepository methods
-  async setAsPending(jobId: string): Promise<void> {
-    await this.job.create({ jobId, status: STATUS.PENDING });
+  async setAsPending({ jobId, status }: JobAsPending): Promise<void> {
+    await this.job.create({ jobId, status });
   }
 
-  async setAsProcessing(jobId: string, updates: JobAsProcess): Promise<void> {
-    await this.job.updateOne(
-      { jobId },
-      { $set: { status: STATUS.PROCESSING, ...updates } },
-    );
+  async setAsProcessing({ jobId, ...updates }: JobAsProcessing): Promise<void> {
+    await this.job.updateOne({ jobId }, { $set: { ...updates } });
   }
 
-  async setAsDone(jobId: string, updates: JobAsDone): Promise<void> {
-    await this.job.updateOne(
-      { jobId },
-      { $set: { status: STATUS.DONE, ...updates } },
-    );
+  async setAsDone({ jobId, ...updates }: JobAsDone): Promise<void> {
+    await this.job.updateOne({ jobId }, { $set: { ...updates } });
+  }
+
+  async setAsError({ jobId, ...updates }: JobAsError): Promise<void> {
+    await this.job.updateOne({ jobId }, { $set: { ...updates } });
   }
 
   async getJob(jobId: string): Promise<Job | undefined> {
@@ -83,7 +88,8 @@ export class MongoImpl implements PersistRepository, OnModuleDestroy {
       .findOne({ jobId }, { _id: false, __v: false, jobId: false })
       .lean();
     if (!job) return;
-    return { ...job };
+
+    return mapJob(job);
   }
 
   async storeRows(jobId: string, rows: Row[]): Promise<void> {

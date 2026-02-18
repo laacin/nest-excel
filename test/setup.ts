@@ -10,7 +10,7 @@ export const setupBefore = async () => {
   const mainModule = await MainModule.forRootAsync({
     infra: { mongo: { host: 'localhost', port: 27017, db: 'test' } },
     app: {
-      queueName: 'test.queue',
+      queue: { process: 'process.test.queue' },
       sheetClass: SheetMock,
     },
   });
