@@ -1,4 +1,4 @@
-import { UseCase } from './usecases.app';
+import { JobProcessingUseCase } from './usecases.app';
 import { DynamicModule, Module } from '@nestjs/common';
 import { AppConfig, BATCH_SIZE, QUEUE_NAME, SHEET_CLASS } from './config.app';
 import { Sheet } from './services/xlsx.service';
@@ -10,12 +10,12 @@ export class AppModule {
       module: AppModule,
       imports: cfg.dependencies,
       providers: [
-        UseCase,
+        JobProcessingUseCase,
         { provide: BATCH_SIZE, useValue: cfg.batchSize ?? 10000 },
         { provide: QUEUE_NAME, useValue: cfg.queueName ?? 'process.queue' },
         { provide: SHEET_CLASS, useValue: cfg.sheetClass ?? Sheet },
       ],
-      exports: [UseCase],
+      exports: [JobProcessingUseCase],
     };
   }
 }
