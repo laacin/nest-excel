@@ -8,7 +8,7 @@ import type {
   MessagingService,
 } from 'src/domain/repository';
 import { BATCH_SIZE, QUEUE_NAME, SHEET_CLASS } from './config.app';
-import { AppErr, PersistErr } from 'src/domain/errs';
+import { AppErr, JobErr } from 'src/domain/errs';
 
 // type definitions
 interface PublishData {
@@ -78,7 +78,7 @@ export class JobProcessingUseCase implements OnModuleInit {
   async getStatus({ jobId }: GetStatusParams): Promise<unknown> {
     try {
       const job = await this.persist.getJob(jobId);
-      if (!job) throw PersistErr.jobNotFound();
+      if (!job) throw JobErr.notFound();
 
       if (job.status === STATUS.PROCESSING) {
         const [rowCount, cellErrCount] = await Promise.all([
@@ -98,7 +98,7 @@ export class JobProcessingUseCase implements OnModuleInit {
   async getRows({ jobId, ...sort }: GetJobQueryParams): Promise<unknown> {
     try {
       const job = await this.persist.getJob(jobId);
-      if (!job) throw PersistErr.jobNotFound();
+      if (!job) throw JobErr.notFound();
 
       const rows = await this.persist.getRows(jobId, sort);
       return rows.map(({ values }) =>
@@ -112,7 +112,7 @@ export class JobProcessingUseCase implements OnModuleInit {
   async getCellErrs({ jobId, ...sort }: GetJobQueryParams): Promise<unknown> {
     try {
       const job = await this.persist.getJob(jobId);
-      if (!job) throw PersistErr.jobNotFound();
+      if (!job) throw JobErr.notFound();
 
       return await this.persist.getCellErrs(jobId, sort);
     } catch (err) {

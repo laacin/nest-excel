@@ -1,16 +1,20 @@
 import { AppErr, ERR_CODE } from './base.err';
 
 export class FmtErr extends AppErr {
-  static invalidFormat() {
+  static missing() {
+    return new FmtErr(ERR_CODE.INVALID_REQUEST, 'Missing format');
+  }
+
+  static invalid() {
     return new FmtErr(ERR_CODE.INVALID_REQUEST, 'Invalid format');
+  }
+
+  static emptyCol() {
+    return new FmtErr(ERR_CODE.VALIDATION, 'Column name cannot be empty');
   }
 
   static noStringType() {
     return new FmtErr(ERR_CODE.VALIDATION, 'Types must be declared as strings');
-  }
-
-  static emptyColumn() {
-    return new FmtErr(ERR_CODE.VALIDATION, 'Column name cannot be empty');
   }
 
   static invalidType(received: string) {

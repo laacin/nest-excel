@@ -1,24 +1,22 @@
 import { Request } from 'express';
-import { AppErr, FileErr, PersistErr } from 'src/domain/errs';
+import { FileErr, FmtErr, JobErr } from 'src/domain/errs';
 
 export class Dto {
   static uploadReq(req: Request) {
-    if (!req.file) throw AppErr.wrongRequest('Missing file');
+    if (!req.file) throw FileErr.missing();
 
     const filename = req.file.path;
-    if (!filename.endsWith('.xlsx')) throw FileErr.noXlsx();
+    if (!filename.endsWith('.xlsx')) throw FileErr.invalid();
 
     const { format } = req.body as Record<string, string>;
-    if (!format || typeof format !== 'string') {
-      throw AppErr.wrongRequest('Missing format');
-    }
+    if (!format || typeof format !== 'string') throw FmtErr.missing();
 
     return { filename, formatString: format };
   }
 
   static statusReq(jobId: unknown) {
     if (typeof jobId !== 'string' || !UUID_V4_REGEX.test(jobId)) {
-      throw PersistErr.jobNotFound();
+      throw JobErr.notFound();
     }
 
     return { jobId };
@@ -26,7 +24,7 @@ export class Dto {
 
   static dataReq(jobId: unknown, input: Record<string, unknown>) {
     if (typeof jobId !== 'string' || !UUID_V4_REGEX.test(jobId)) {
-      throw PersistErr.jobNotFound();
+      throw JobErr.notFound();
     }
 
     const desc = Boolean(input.desc);

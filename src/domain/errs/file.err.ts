@@ -1,18 +1,11 @@
 import { AppErr, ERR_CODE } from './base.err';
 
 export class FileErr extends AppErr {
-  static noXlsx() {
-    return new FileErr(ERR_CODE.INVALID_REQUEST, 'File must be a .xlsx');
+  static missing() {
+    return new FileErr(ERR_CODE.INVALID_REQUEST, 'Missing file');
   }
 
-  static noCols() {
-    return new FileErr(ERR_CODE.INVALID_REQUEST, "File doesn't have vali");
-  }
-
-  static missingRequiredCol(col: string) {
-    return new FileErr(
-      ERR_CODE.VALIDATION,
-      `Table does not contain the required column: ${col}`,
-    );
+  static invalid() {
+    return new FileErr(ERR_CODE.INVALID_REQUEST, 'Invalid file');
   }
 }

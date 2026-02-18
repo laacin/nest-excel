@@ -15,16 +15,12 @@ export class AppErr extends Error {
   }
 
   static internal(msg: string) {
-    console.log(msg);
-    return new AppErr(ERR_CODE.INTERNAL, 'something went wrong');
+    console.error(msg);
+    return new AppErr(ERR_CODE.INTERNAL, 'Something went wrong');
   }
 
   static unknown(_problem: unknown) {
-    // console.error(problem);
-    return new AppErr(ERR_CODE.INTERNAL, 'something went wrong');
-  }
-
-  static wrongRequest(msg: string) {
-    return new AppErr(ERR_CODE.INVALID_REQUEST, msg);
+    //console.error(problem);
+    return new AppErr(ERR_CODE.INTERNAL, 'Something went wrong');
   }
 }

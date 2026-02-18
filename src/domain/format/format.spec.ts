@@ -23,7 +23,7 @@ describe('format', () => {
     const formatString = '{"name": }';
 
     const res = checkErr(() => new Format(formatString));
-    expect(res).toStrictEqual(FmtErr.invalidFormat().message);
+    expect(res).toStrictEqual(FmtErr.invalid().message);
   });
 
   it('cols', () => {

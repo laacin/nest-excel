@@ -1,13 +1,13 @@
-export type ValidTyp = 'string' | 'number' | 'boolean' | 'date';
+export type ValidType = 'string' | 'number' | 'boolean' | 'date';
 
-export const isValidTyp = (v: string): v is ValidTyp => {
+export const isValidType = (v: string): v is ValidType => {
   return v === 'string' || v === 'number' || v === 'boolean' || v === 'date';
 };
 
 // TODO: support date
-export const parseTyp = (
+export const parseType = (
   isArray: boolean,
-  expect: ValidTyp,
+  expect: ValidType,
   v: unknown,
 ): unknown => {
   switch (expect) {

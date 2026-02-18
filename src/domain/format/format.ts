@@ -1,12 +1,12 @@
 import { CellErr, RawRow, Row } from '../entity';
-import { AppErr, FmtErr, FileErr } from '../errs';
-import { ValidTyp, isValidTyp, parseTyp } from './parsers';
+import { FmtErr, ParseErr } from '../errs';
+import { ValidType, isValidType, parseType } from './parsers';
 
 export interface FormatRules {
   name: string;
   isRequired: boolean;
   isArray: boolean;
-  typ: ValidTyp;
+  type: ValidType;
 }
 
 export class Format {
@@ -30,20 +30,20 @@ export class Format {
         const isRequired = !k.endsWith('?');
         const isArray = t.startsWith('array<');
         const name = k.replace(/\?$/, '');
-        const typ = isArray ? t.replace(/^array<|>$/g, '') : t;
+        const type = isArray ? t.replace(/^array<|>$/g, '') : t;
 
-        if (!name) throw FmtErr.emptyColumn();
-        if (!isValidTyp(typ)) {
-          throw FmtErr.invalidType(typ);
+        if (!name) throw FmtErr.emptyCol();
+        if (!isValidType(type)) {
+          throw FmtErr.invalidType(type);
         }
 
-        rules.push({ name, isRequired, isArray, typ });
+        rules.push({ name, isRequired, isArray, type });
       });
 
       this.rules = rules;
       if (rawCols) this.loadRawCols(rawCols);
     } catch (e) {
-      throw e instanceof AppErr ? e : FmtErr.invalidFormat();
+      throw e instanceof FmtErr ? e : FmtErr.invalid();
     }
   }
 
@@ -74,7 +74,7 @@ export class Format {
         continue;
       }
 
-      const parsed = parseTyp(rule.isArray, rule.typ, value);
+      const parsed = parseType(rule.isArray, rule.type, value);
       if (parsed === null) {
         addCellErr();
         continue;
@@ -88,14 +88,14 @@ export class Format {
 
   // lazy load rawCols
   loadRawCols(rawCols: unknown[]) {
-    if (rawCols.length < 1) throw FileErr.noCols();
+    if (rawCols.length < 1) throw ParseErr.noValidCols();
 
     const index: number[] = [];
     this.rules.forEach((rule) => {
       const i = rawCols.indexOf(rule.name);
 
       if (i < 0 && rule.isRequired) {
-        throw FileErr.missingRequiredCol(rule.name);
+        throw ParseErr.missingRequiredCol(rule.name);
       }
 
       index.push(i);
