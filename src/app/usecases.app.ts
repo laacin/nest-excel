@@ -6,34 +6,26 @@ import { PERSIST, MESSAGING } from 'src/domain/repository';
 import type {
   PersistRepository,
   MessagingService,
-  Sort,
 } from 'src/domain/repository';
 import { BATCH_SIZE, QUEUE_NAME, SHEET_CLASS } from './config.app';
-import { AppErr, PersistErr, FileErr } from 'src/domain/errs';
+import { AppErr, PersistErr } from 'src/domain/errs';
 
-interface QueueData {
+// type definitions
+interface PublishData {
   jobId: string;
   filename: string;
   formatString: string;
 }
 
-type DataRequest =
-  | {
-      which: 'rows';
-      mapped?: boolean;
-      page: number;
-      take: number;
-      desc?: boolean;
-    }
-  | {
-      which: 'cellErrs';
-      page: number;
-      take: number;
-      desc?: boolean;
-    };
+interface GetJobQueryParams {
+  jobId: string;
+  limit: number;
+  offset: number;
+  desc: boolean;
+}
 
 @Injectable()
-export class UseCase implements OnModuleInit {
+export class JobProcessingUseCase implements OnModuleInit {
   constructor(
     @Inject(PERSIST) private readonly persist: PersistRepository,
     @Inject(MESSAGING) private readonly msg: MessagingService,
@@ -47,24 +39,26 @@ export class UseCase implements OnModuleInit {
     await this.msg.storeConsumers([
       {
         queue: this.QUEUE_NAME,
-        work: (data: QueueData) => this.processJob(data),
+        work: (data: PublishData) => this.processJob(data),
         onErr: { requeue: true },
       },
     ]);
   }
 
-  async handleUploadFile(
+  async uploadFile(
     filename: string,
     formatString: string,
   ): Promise<{ jobId: string }> {
     try {
-      if (!filename.endsWith('.xlsx')) throw FileErr.noXlsx();
-
       new Format(formatString); // validate format
       const jobId = crypto.randomUUID();
 
       await this.persist.setAsPending(jobId);
-      this.msg.publish(this.QUEUE_NAME, { jobId, filename, formatString });
+      this.msg.publish(this.QUEUE_NAME, {
+        jobId,
+        filename,
+        formatString,
+      } satisfies PublishData);
 
       return { jobId };
     } catch (err) {
@@ -72,7 +66,7 @@ export class UseCase implements OnModuleInit {
     }
   }
 
-  async handleStatusRequest(jobId: string): Promise<unknown> {
+  async getStatus(jobId: string): Promise<unknown> {
     try {
       const job = await this.persist.getJob(jobId);
       if (!job) throw PersistErr.jobNotFound();
@@ -82,7 +76,6 @@ export class UseCase implements OnModuleInit {
           this.persist.countRows(jobId),
           this.persist.countCellErrs(jobId),
         ]);
-
         job.rowCount = rowCount;
         job.cellErrCount = cellErrCount;
       }
@@ -93,46 +86,39 @@ export class UseCase implements OnModuleInit {
     }
   }
 
-  async handleDataRequest(jobId: string, req: DataRequest): Promise<unknown> {
+  async getRows({ jobId, ...sort }: GetJobQueryParams): Promise<unknown> {
     try {
       const job = await this.persist.getJob(jobId);
       if (!job) throw PersistErr.jobNotFound();
-      if (job.status !== STATUS.DONE) throw PersistErr.jobInProcess();
 
-      const sort: Sort = {
-        limit: req.take,
-        offset: (Math.max(1, req.page) - 1) * req.take,
-        desc: req.desc,
-      };
-
-      if (req.which === 'rows') {
-        const rows = await this.persist.getRows(jobId, sort);
-
-        if (req.mapped) {
-          return rows.map(({ values }) =>
-            Object.fromEntries(values.map((v, i) => [job.cols[i], v])),
-          );
-        }
-
-        return rows;
-      }
-
-      if (req.which === 'cellErrs') {
-        return await this.persist.getCellErrs(jobId, sort);
-      }
+      const rows = await this.persist.getRows(jobId, sort);
+      return rows.map(({ values }) =>
+        Object.fromEntries(values.map((v, i) => [job.cols[i], v])),
+      );
     } catch (err) {
       throw err instanceof AppErr ? err : AppErr.unknown(err);
     }
   }
 
-  // -- internal use cases;
-  async processJob({
+  async getCellErrs({ jobId, ...sort }: GetJobQueryParams): Promise<unknown> {
+    try {
+      const job = await this.persist.getJob(jobId);
+      if (!job) throw PersistErr.jobNotFound();
+
+      return await this.persist.getCellErrs(jobId, sort);
+    } catch (err) {
+      throw err instanceof AppErr ? err : AppErr.unknown(err);
+    }
+  }
+
+  // internal use cases
+  private async processJob({
     jobId,
     filename,
     formatString,
-  }: QueueData): Promise<void> {
+  }: PublishData): Promise<void> {
     try {
-      const promise = Promise.all([
+      const initialCountsPromise = Promise.all([
         this.persist.countRows(jobId),
         this.persist.countCellErrs(jobId),
       ]);
@@ -140,7 +126,7 @@ export class UseCase implements OnModuleInit {
       const sheet = new this.sheet(filename);
       const fmt = new Format(formatString, sheet.getRawCols());
       const totalRows = sheet.getTotalRows();
-      const [rowCount, cellErrCount] = await promise;
+      const [rowCount, cellErrCount] = await initialCountsPromise;
 
       await this.persist.setAsProcessing(jobId, {
         cols: fmt.getCols(),
@@ -153,7 +139,7 @@ export class UseCase implements OnModuleInit {
       while (offset < totalRows) {
         const rawRows = sheet.getRawRows(this.BATCH_SIZE, offset);
         if (rawRows.length === 0) {
-          throw AppErr.internal('unexpected no raw rows');
+          throw AppErr.internal('no raw rows returned unexpectedly');
         }
 
         const rows: Row[] = [];
@@ -166,12 +152,12 @@ export class UseCase implements OnModuleInit {
           rows.push(resolved.row);
         }
 
-        const promises = [this.persist.storeRows(jobId, rows)];
+        const storePromises = [this.persist.storeRows(jobId, rows)];
         if (cellErrs.length) {
-          promises.push(this.persist.storeCellErrs(jobId, cellErrs));
+          storePromises.push(this.persist.storeCellErrs(jobId, cellErrs));
         }
 
-        await Promise.all(promises);
+        await Promise.all(storePromises);
         offset += rawRows.length;
       }
 
@@ -182,7 +168,7 @@ export class UseCase implements OnModuleInit {
 
       if (rowCountFinal !== totalRows) {
         console.log(
-          `mismatch totalRows: expected: ${totalRows}, have: ${rowCountFinal}`,
+          `mismatch totalRows: expected ${totalRows}, got ${rowCountFinal}`,
         );
       }
 
