@@ -1,4 +1,5 @@
 export enum ERR_CODE {
+  UNKNOWN = 'UNKNOWN',
   INTERNAL = 'INTERNAL',
   INVALID_REQUEST = 'INVALID_REQUEST',
   VALIDATION = 'VALIDATION',
@@ -21,6 +22,6 @@ export class AppErr extends Error {
 
   static unknown(_problem: unknown) {
     // console.error(_problem);
-    return new AppErr(ERR_CODE.INTERNAL, 'Something went wrong');
+    return new AppErr(ERR_CODE.UNKNOWN, 'Something went wrong');
   }
 }

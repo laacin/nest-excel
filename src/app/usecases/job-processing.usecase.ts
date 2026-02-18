@@ -154,8 +154,7 @@ export class JobProcessingUseCase implements OnModuleInit {
       while (offset < totalRows) {
         const rawRows = sheet.getRawRows(this.batchSize, offset);
         if (rawRows.length === 0) {
-          break;
-          //throw AppErr.internal('no raw rows returned unexpectedly');
+          throw AppErr.internal('no raw rows returned unexpectedly');
         }
 
         const rows: Row[] = [];
@@ -183,7 +182,7 @@ export class JobProcessingUseCase implements OnModuleInit {
       ]);
 
       if (rowCountFinal !== totalRows) {
-        console.log(
+        throw AppErr.internal(
           `mismatch totalRows: expected ${totalRows}, got ${rowCountFinal}`,
         );
       }
@@ -208,7 +207,7 @@ export class JobProcessingUseCase implements OnModuleInit {
   ): Promise<void> {
     try {
       const appErr = err instanceof AppErr ? err : AppErr.unknown(err);
-      if (appErr.code === ERR_CODE.INTERNAL) {
+      if (appErr.code === ERR_CODE.UNKNOWN) {
         throw err; // requeue
       }
 
