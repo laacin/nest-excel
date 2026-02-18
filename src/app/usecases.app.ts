@@ -17,6 +17,15 @@ interface PublishData {
   formatString: string;
 }
 
+interface UploadFileParams {
+  filename: string;
+  formatString: string;
+}
+
+interface GetStatusParams {
+  jobId: string;
+}
+
 interface GetJobQueryParams {
   jobId: string;
   limit: number;
@@ -45,10 +54,10 @@ export class JobProcessingUseCase implements OnModuleInit {
     ]);
   }
 
-  async uploadFile(
-    filename: string,
-    formatString: string,
-  ): Promise<{ jobId: string }> {
+  async uploadFile({
+    filename,
+    formatString,
+  }: UploadFileParams): Promise<{ jobId: string }> {
     try {
       new Format(formatString); // validate format
       const jobId = crypto.randomUUID();
@@ -66,7 +75,7 @@ export class JobProcessingUseCase implements OnModuleInit {
     }
   }
 
-  async getStatus(jobId: string): Promise<unknown> {
+  async getStatus({ jobId }: GetStatusParams): Promise<unknown> {
     try {
       const job = await this.persist.getJob(jobId);
       if (!job) throw PersistErr.jobNotFound();
