@@ -1,8 +1,8 @@
 import { Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { JobProcessingUseCase } from 'src/app/usecases.app';
-import { File } from './interceptor.adapter';
-import { type HttpContext, UseContext } from './http.adapter';
-import { Dto } from './dto.adapter';
+import { JobProcessingUseCase } from '@app/usecases/job-processing.usecase';
+import { File } from '@adapter/interceptor';
+import { type HttpContext, UseContext } from '@adapter/http';
+import { Dto } from '@adapter/dto';
 
 const FILE_DESTINATION = 'tmp';
 

@@ -6,17 +6,17 @@ import {
   JobAsProcessing,
   JobAsPending,
   Row,
-} from 'src/domain/entity';
+} from '@domain/entity';
 import { connect, model, Model, Mongoose } from 'mongoose';
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import { PersistRepository, Sort } from 'src/domain/repository';
+import { PersistRepository, Sort } from '@domain/repository';
 import {
   JobSchema,
   RowSchema,
   CellErrSchema,
   JobPersist,
   mapJob,
-} from './schemas';
+} from '@infra/persist/schemas';
 
 @Injectable()
 export class MongoImpl implements PersistRepository, OnModuleDestroy {

@@ -1,6 +1,3 @@
-export const MONGO_URL = 'MONGO_URL';
-export const AMQP_URL = 'AMQP_RUL';
-
 export interface InfraConfig {
   mongo?: MongoConfig;
   amqp?: RabbitMQConfig;

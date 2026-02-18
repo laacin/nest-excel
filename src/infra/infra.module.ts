@@ -1,8 +1,8 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import { PERSIST, MESSAGING } from 'src/domain/repository';
-import { MongoImpl } from './persist/repository';
-import { RabbitMqImpl } from './queue/amqp';
-import { InfraConfig, resolveCfg } from './config';
+import { PERSIST, MESSAGING } from '@domain/repository';
+import { MongoImpl } from '@infra/persist/repository';
+import { RabbitMqImpl } from '@infra/queue/amqp';
+import { InfraConfig, resolveCfg } from '@infra/config';
 
 @Module({})
 export class InfraModule {

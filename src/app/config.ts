@@ -1,10 +1,5 @@
 import { DynamicModule } from '@nestjs/common';
-import { ISheetConstructor, Sheet } from './services/xlsx.service';
-
-// tokens
-export const BATCH_SIZE = 'BATCH_SIZE';
-export const QUEUE_NAMES = 'QUEUE_NAMES';
-export const SHEET_CLASS = 'SHEET_CLASS';
+import { ISheetConstructor, Sheet } from '@app/services/xlsx.service';
 
 // config
 export interface AppConfig {

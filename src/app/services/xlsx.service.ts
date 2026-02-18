@@ -1,4 +1,4 @@
-import { RawRow } from 'src/domain/entity';
+import { RawRow } from '@domain/entity';
 import XLSX from 'xlsx';
 
 // abstraction

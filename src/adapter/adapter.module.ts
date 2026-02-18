@@ -1,5 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import { Controllers } from './controller.adapter';
+import { Controllers } from '@adapter/controller';
 
 interface AdapterConfig {
   dependencies: DynamicModule[];

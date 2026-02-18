@@ -8,7 +8,7 @@ import {
   JobAsProcessing,
   type Row,
   STATUS,
-} from 'src/domain/entity';
+} from '@domain/entity';
 
 export interface JobPersist {
   jobId: string;

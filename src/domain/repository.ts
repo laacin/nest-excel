@@ -6,7 +6,7 @@ import type {
   JobAsPending,
   JobAsProcessing,
   Row,
-} from './entity';
+} from '@domain/entity';
 
 export const PERSIST = 'PERSIST';
 export interface PersistRepository {

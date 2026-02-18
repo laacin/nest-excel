@@ -1,4 +1,4 @@
-import { AppErr, ERR_CODE } from './base.err';
+import { AppErr, ERR_CODE } from '@domain/errs/base.err';
 
 export class ParseErr extends AppErr {
   static noValidCols() {

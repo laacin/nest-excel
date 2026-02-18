@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { FileErr, FmtErr, JobErr } from 'src/domain/errs';
+import { FileErr, FmtErr, JobErr } from '@domain/errs';
 
 export class Dto {
   static uploadReq(req: Request) {

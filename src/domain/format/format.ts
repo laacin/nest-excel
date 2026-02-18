@@ -1,6 +1,6 @@
-import { CellErr, RawRow, Row } from '../entity';
-import { FmtErr, ParseErr } from '../errs';
-import { ValidType, isValidType, parseType } from './parsers';
+import { CellErr, RawRow, Row } from '@domain/entity';
+import { FmtErr, ParseErr } from '@domain/errs';
+import { ValidType, isValidType, parseType } from '@domain/format/parser';
 
 export interface FormatRules {
   name: string;

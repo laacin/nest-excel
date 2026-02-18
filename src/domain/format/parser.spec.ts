@@ -1,4 +1,4 @@
-import { parseType } from './parsers';
+import { parseType } from '@domain/format/parser';
 
 describe('parser', () => {
   const values = [10, 1, 'hi', false, 'true', { key: 'val' }];

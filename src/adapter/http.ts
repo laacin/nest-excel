@@ -1,6 +1,6 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { AppErr, ERR_CODE } from 'src/domain/errs';
+import { AppErr, ERR_CODE } from '@domain/errs';
 
 // -- Error mapper
 const statusMap: Record<ERR_CODE, number> = {

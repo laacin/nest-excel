@@ -1,12 +1,7 @@
-import { JobProcessingUseCase } from './usecases.app';
+import { JobProcessingUseCase } from '@app/usecases/job-processing.usecase';
 import { DynamicModule, Module } from '@nestjs/common';
-import {
-  AppConfig,
-  BATCH_SIZE,
-  QUEUE_NAMES,
-  resolveCfg,
-  SHEET_CLASS,
-} from './config.app';
+import { AppConfig, resolveCfg } from '@app/config';
+import { BATCH_SIZE, QUEUE_NAMES, SHEET_CLASS } from '@app/constants';
 
 @Module({})
 export class AppModule {

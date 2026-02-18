@@ -1,5 +1,5 @@
-import { ISheet } from 'src/app/services/xlsx.service';
-import { RawRow } from 'src/domain/entity';
+import { ISheet } from '@app/services/xlsx.service';
+import { RawRow } from '@domain/entity';
 
 export class SheetMock implements ISheet {
   private range: number;

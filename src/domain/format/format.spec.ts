@@ -1,5 +1,5 @@
-import { FmtErr } from '../errs';
-import { Format } from './format';
+import { FmtErr } from '@domain/errs';
+import { Format } from '@domain/format';
 
 const checkErr = (fn: () => void): string => {
   try {

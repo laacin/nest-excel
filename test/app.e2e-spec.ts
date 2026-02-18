@@ -1,11 +1,11 @@
 import { INestApplication } from '@nestjs/common';
 import { App } from 'supertest/types';
-import { RabbitMqImpl } from 'src/infra/queue/amqp';
-import { MESSAGING } from 'src/domain/repository';
-import { sleep } from './utils';
-import { ApiTest } from './apiRequests';
-import { downDB, setupBefore, upDB } from './setup';
-import { mockSheets } from './mocks';
+import { RabbitMqImpl } from '@infra/queue/amqp';
+import { MESSAGING } from '@domain/repository';
+import { sleep } from '@test/test-utils';
+import { ApiTest } from '@test/test-api-requests';
+import { downDB, setupBefore, upDB } from '@test/test-setup';
+import { mockSheets } from '@test/test-mocks';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;

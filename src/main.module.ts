@@ -2,7 +2,7 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { AppModule } from './app/app.module';
 import { InfraModule } from './infra/infra.module';
 import { ConfigModule } from '@nestjs/config';
-import { AppConfig } from './app/config.app';
+import { AppConfig } from './app/config';
 import { InfraConfig } from './infra/config';
 import { AdapterModule } from './adapter/adapter.module';
 

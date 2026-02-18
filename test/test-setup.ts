@@ -1,10 +1,10 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { MainModule } from 'src/main.module';
-import { SheetMock } from './mocks';
+import { SheetMock } from '@test/test-mocks';
 import { App } from 'supertest/types';
-import { MongoImpl } from 'src/infra/persist/repository';
-import { PERSIST } from 'src/domain/repository';
+import { MongoImpl } from '@infra/persist/repository';
+import { PERSIST } from '@domain/repository';
 
 export const setupBefore = async () => {
   const mainModule = await MainModule.forRootAsync({

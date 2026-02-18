@@ -1,19 +1,12 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import type { ISheetConstructor } from './services/xlsx.service';
-import { Format } from 'src/domain/format';
-import { CellErr, Row, STATUS } from 'src/domain/entity';
-import { PERSIST, MESSAGING } from 'src/domain/repository';
-import type {
-  PersistRepository,
-  MessagingService,
-} from 'src/domain/repository';
-import {
-  BATCH_SIZE,
-  QUEUE_NAMES,
-  type QueueNames,
-  SHEET_CLASS,
-} from './config.app';
-import { AppErr, ERR_CODE, JobErr } from 'src/domain/errs';
+import { Format } from '@domain/format';
+import { CellErr, Row, STATUS } from '@domain/entity';
+import type { ISheetConstructor } from '@app/services/xlsx.service';
+import type { PersistRepository, MessagingService } from '@domain/repository';
+import type { QueueNames } from '@app/config';
+import { PERSIST, MESSAGING } from '@domain/repository';
+import { BATCH_SIZE, QUEUE_NAMES, SHEET_CLASS } from '@app/constants';
+import { AppErr, ERR_CODE, JobErr } from '@domain/errs';
 
 // type definitions
 interface PublishData {
@@ -161,7 +154,8 @@ export class JobProcessingUseCase implements OnModuleInit {
       while (offset < totalRows) {
         const rawRows = sheet.getRawRows(this.batchSize, offset);
         if (rawRows.length === 0) {
-          throw AppErr.internal('no raw rows returned unexpectedly');
+          break;
+          //throw AppErr.internal('no raw rows returned unexpectedly');
         }
 
         const rows: Row[] = [];
