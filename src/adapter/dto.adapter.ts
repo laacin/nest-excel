@@ -13,7 +13,7 @@ export class Dto {
       throw AppErr.wrongRequest('Missing format');
     }
 
-    return { filename, format };
+    return { filename, formatString: format };
   }
 
   static statusReq(jobId: unknown) {
@@ -29,14 +29,16 @@ export class Dto {
       throw PersistErr.jobNotFound();
     }
 
-    const page = Number(input.page);
-    const take = Number(input.take);
     const desc = Boolean(input.desc);
+    let page = Number(input.page);
+    let take = Number(input.take);
+    page = !Number.isNaN(page) && page > 0 ? page : 1;
+    take = !Number.isNaN(take) && take > 0 ? take : 1;
 
     return {
       jobId,
-      page: !Number.isNaN(page) && page > 0 ? page : 1,
-      take: !Number.isNaN(take) && take > 0 ? take : 1,
+      limit: take,
+      offset: (page - 1) * take,
       desc,
     };
   }
