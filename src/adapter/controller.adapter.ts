@@ -2,7 +2,7 @@ import { Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { UseCase } from 'src/app/usecases.app';
 import { File } from './interceptor.adapter';
 import { type HttpContext, UseContext } from './http.adapter';
-import { AppErr } from 'src/domain/errs';
+import { Dto } from './dto.adapter';
 
 const FILE_DESTINATION = 'tmp';
 
@@ -14,16 +14,9 @@ export class Controllers {
   @File({ field: 'file', dest: FILE_DESTINATION })
   async postUploadFile(@UseContext() { req, res }: HttpContext) {
     try {
-      if (!req.file) throw AppErr.wrongRequest('missing file');
+      const { filename, format } = Dto.uploadReq(req);
 
-      const { format } = req.body as Record<string, unknown>;
-      if (!format) throw AppErr.wrongRequest('missing format');
-
-      const response = await this.use.handleUploadFile(
-        req.file.path,
-        format as string,
-      );
-
+      const response = await this.use.handleUploadFile(filename, format);
       res.status(201).send(response);
     } catch (err) {
       res.sendErr(err);
@@ -33,7 +26,9 @@ export class Controllers {
   @Get('/status/:id')
   async getStatus(@UseContext() { res }: HttpContext, @Param('id') id: string) {
     try {
-      const response = await this.use.handleStatusRequest(id);
+      const { jobId } = Dto.statusReq(id);
+
+      const response = await this.use.handleStatusRequest(jobId);
       res.status(200).send(response);
     } catch (err) {
       res.sendErr(err);
@@ -47,15 +42,9 @@ export class Controllers {
     @Query() query: Record<string, unknown>,
   ) {
     try {
-      const { page, take, desc } = query;
+      const dto = Dto.dataReq(id, query);
 
-      const response = await this.use.handleRowsRequest({
-        jobId: id,
-        page: page as number,
-        take: take as number,
-        desc: desc as boolean,
-      });
-
+      const response = await this.use.handleRowsRequest(dto);
       res.status(200).send(response);
     } catch (err) {
       res.sendErr(err);
@@ -69,15 +58,9 @@ export class Controllers {
     @Query() query: Record<string, unknown>,
   ) {
     try {
-      const { page, take, desc } = query;
+      const dto = Dto.dataReq(id, query);
 
-      const response = await this.use.handleCellErrsRequest({
-        jobId: id,
-        page: page as number,
-        take: take as number,
-        desc: desc as boolean,
-      });
-
+      const response = await this.use.handleCellErrsRequest(dto);
       res.status(200).send(response);
     } catch (err) {
       res.sendErr(err);
