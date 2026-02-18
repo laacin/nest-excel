@@ -76,7 +76,7 @@ export class RabbitMqImpl implements OnModuleDestroy, MessagingService {
       this.consumers.set(queue, { work, onErr });
     });
 
-    if (await this.guard()) this.runConsumers();
+    if (await this.guard()) await this.runConsumers();
   }
 
   publish(queue: string, data: unknown): void {
