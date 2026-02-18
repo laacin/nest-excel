@@ -83,7 +83,7 @@ export class UseCase implements OnModuleInit {
           this.persist.countCellErrs(jobId),
         ]);
 
-        job.rowsCount = rowCount;
+        job.rowCount = rowCount;
         job.cellErrCount = cellErrCount;
       }
 
@@ -140,16 +140,16 @@ export class UseCase implements OnModuleInit {
       const sheet = new this.sheet(filename);
       const fmt = new Format(formatString, sheet.getRawCols());
       const totalRows = sheet.getTotalRows();
-      const [rowsCount, cellErrCount] = await promise;
+      const [rowCount, cellErrCount] = await promise;
 
       await this.persist.setAsProcessing(jobId, {
         cols: fmt.getCols(),
         totalRows,
-        rowsCount,
+        rowCount,
         cellErrCount,
       });
 
-      let offset = rowsCount;
+      let offset = rowCount;
       while (offset < totalRows) {
         const rawRows = sheet.getRawRows(this.BATCH_SIZE, offset);
         if (rawRows.length === 0) {
@@ -175,19 +175,19 @@ export class UseCase implements OnModuleInit {
         offset += rawRows.length;
       }
 
-      const [rowsCountFinal, cellErrCountFinal] = await Promise.all([
+      const [rowCountFinal, cellErrCountFinal] = await Promise.all([
         this.persist.countRows(jobId),
         this.persist.countCellErrs(jobId),
       ]);
 
-      if (rowsCountFinal !== totalRows) {
+      if (rowCountFinal !== totalRows) {
         console.log(
-          `mismatch totalRows: expected: ${totalRows}, have: ${rowsCount}`,
+          `mismatch totalRows: expected: ${totalRows}, have: ${rowCountFinal}`,
         );
       }
 
       await this.persist.setAsDone(jobId, {
-        rowsCount: rowsCountFinal,
+        rowCount: rowCountFinal,
         cellErrCount: cellErrCountFinal,
       });
     } catch (err) {

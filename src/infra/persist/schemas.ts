@@ -6,7 +6,7 @@ export const JobSchema = new Schema<Job>({
   status: { type: String, enum: Object.values(STATUS), required: true },
   cols: { type: [String], default: [] },
   totalRows: { type: Number, default: 0 },
-  rowsCount: { type: Number, default: 0 },
+  rowCount: { type: Number, default: 0 },
   cellErrCount: { type: Number, default: 0 },
 });
 

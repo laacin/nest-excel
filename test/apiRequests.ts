@@ -88,7 +88,7 @@ interface StatusResponse {
   status: string;
   cols: string[];
   totalRows: number;
-  rowsCount: number;
+  rowCount: number;
   cellErrCount: number;
 }
 
