@@ -74,6 +74,13 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^@domain/(.*)$": "<rootDir>/domain/$1",
+      "^@app/(.*)$": "<rootDir>/app/$1",
+      "^@infra/(.*)$": "<rootDir>/infra/$1",
+      "^@adapter/(.*)$": "<rootDir>/adapter/$1",
+      "^@test/(.*)$": "<rootDir>/../test/$1"
+    }
   }
 }
