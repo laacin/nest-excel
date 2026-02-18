@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { UseCase } from 'src/app/usecases.app';
-import { File } from './interceptor';
-import { type HttpContext, UseContext } from './http.interface';
+import { File } from './interceptor.adapter';
+import { type HttpContext, UseContext } from './http.adapter';
 import { AppErr } from 'src/domain/errs';
 
 const FILE_DESTINATION = 'tmp';
@@ -47,14 +47,13 @@ export class Controllers {
     @Query() query: Record<string, unknown>,
   ) {
     try {
-      const { page, take, desc, mapped } = query;
+      const { page, take, desc } = query;
 
-      const response = await this.use.handleDataRequest(id, {
-        which: 'rows',
+      const response = await this.use.handleRowsRequest({
+        jobId: id,
         page: page as number,
         take: take as number,
         desc: desc as boolean,
-        mapped: mapped as boolean,
       });
 
       res.status(200).send(response);
@@ -72,8 +71,8 @@ export class Controllers {
     try {
       const { page, take, desc } = query;
 
-      const response = await this.use.handleDataRequest(id, {
-        which: 'cellErrs',
+      const response = await this.use.handleCellErrsRequest({
+        jobId: id,
         page: page as number,
         take: take as number,
         desc: desc as boolean,
