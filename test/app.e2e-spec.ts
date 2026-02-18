@@ -76,7 +76,6 @@ describe('AppController (e2e)', () => {
         break;
       }
 
-      if (status === 'done') return;
       await sleep(2000);
     }
 
