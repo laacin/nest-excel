@@ -5,6 +5,7 @@ import { AppErr, ERR_CODE } from '@domain/errs';
 // -- Error mapper
 const statusMap: Record<ERR_CODE, number> = {
   INTERNAL: 500,
+  UNKNOWN: 500,
   INVALID_REQUEST: 400,
   VALIDATION: 400,
   RESOURCE_NOT_FOUND: 404,
