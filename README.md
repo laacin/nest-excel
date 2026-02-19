@@ -1,98 +1,270 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Nest-excel
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Nest-excel es un lector de archivos XLSX
+que recibe un formato de parseo y un archivo,
+valida y parsea las filas para finalmente persistirlas.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Uso
 
-## Description
+A través del endpoint `POST /upload` con el header `multipart/form-data`
+se envían los campos `file` y `format` para subir un archivo `xlsx`, el cual será leído
+y parseado usando el `format` dado. <br>
+Este responderá con un ID que se utilizará para consultar el estado del trabajo y
+obtener el resultado de las filas y errores de celda.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+### Formato
 
-## Project setup
+El formato debe ser:
 
-```bash
-$ yarn install
+```json
+{ "columna": "Tipo" }
 ```
 
-## Compile and run the project
+e.g.:
 
-```bash
-# development
-$ yarn run start
-
-# watch mode
-$ yarn run start:dev
-
-# production mode
-$ yarn run start:prod
+```json
+{
+  "name": "String",
+  "age": "Number",
+  "nums?": "Array<Number>"
+}
 ```
 
-## Run tests
+- Tipos soportados: `String`, `Number`, `Boolean`, `Date`
+- Cada uno de los tipos puede ser un array: `Array<Number>`, `Array<Boolean>`, ...
+- Añadir un `?` al final de la columna la hace opcional.
+- Los nombres de las columnas son case sensitive.
 
-```bash
-# unit tests
-$ yarn run test
+### Archivo
 
-# e2e tests
-$ yarn run test:e2e
+El archivo debe ser formato `xlsx`
 
-# test coverage
-$ yarn run test:cov
+## Endpoints
+
+Cuando se realiza una llamada a la API, esta responderá con un JSON
+que contendrá **siempre** un campo `ok`. Si este es `true`, existirá el campo `response`,
+de lo contrario, existirá `err`.
+
+`response` depende de la respuesta que devuelva cada endpoint.
+
+```json
+{
+  "ok": true,
+  "response": {}
+}
 ```
 
-## Deployment
+`err` siempre comparte la misma estructura.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ yarn install -g @nestjs/mau
-$ mau deploy
+```json
+{
+  "ok": false,
+  "err": {
+    "reason": "something went wrong",
+    "status": 500,
+    "code": "INTERNAL"
+  }
+}
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+<details>
+<summary>POST /upload</summary>
 
-## Resources
+##### Request
 
-Check out a few resources that may come in handy when working with NestJS:
+Recibe `multipart/form-data` con dos campos:
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+- `file`: Archivo XLSX a procesar.
+- `format`: Formato de parseo. Se envía como string.
 
-## Support
+##### Response
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+_`jobId: string` ID del trabajo. utilizado para recuperar el estado o datos_
 
-## Stay in touch
+```json
+{
+  "ok": true,
+  "response": {
+    "jobId": "43e0ccad-f014-458f-a15e-2cc3e754a676"
+  }
+}
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+</details>
 
-## License
+<details>
+<summary>GET /status/:JobId</summary>
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+##### Request
+
+Se debe proveer el ID del trabajo por URL
+
+e.g.: `/status/43e0ccad-f014-458f-a15e-2cc3e754a676`
+
+##### Response
+
+Se pueden devolver diferentes resultados
+dependiendo del valor `status` del trabajo. <br>
+Los cuales pueden ser: `pending`, `processing`, `done`, `error`.
+
+_`status: string` estado actual del trabajo_ <br>
+_`cols: string[]` columnas tenidas en cuenta._ <br>
+_`totalRows: number` número de filas a procesar._ <br>
+_`rowCount: number` número de filas procesadas._ <br>
+_`cellErrCount: number` número de errores de celda._ <br>
+_`finishedAt: string (ISO 8601)` cuando terminó de procesar_ <br>
+_`reason: string` motivo del error_ <br>
+
+`status = pending:`
+
+```json
+{
+  "ok": true,
+  "response": {
+    "status": "pending"
+  }
+}
+```
+
+`status = processing:`
+
+Los contadores representan el progreso actual.
+
+```json
+{
+  "ok": true,
+  "response": {
+    "status": "processing",
+    "cols": ["name", "age", "nums"],
+    "totalRows": 17000,
+    "rowCount": 3000,
+    "cellErrCount": 0
+  }
+}
+```
+
+`status = done:`
+
+```json
+{
+  "ok": true,
+  "response": {
+    "status": "done",
+    "cols": ["name", "age", "nums"],
+    "rowCount": 17000,
+    "cellErrCount": 30,
+    "finishedAt": "2026-02-19T21:45:30.123Z"
+  }
+}
+```
+
+`status = error:`
+
+```json
+{
+  "ok": true,
+  "response": {
+    "status": "error",
+    "reason": "Table has no valid columns",
+    "finishedAt": "2026-02-19T21:45:30.123Z"
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>GET /rows/:jobId</summary>
+
+##### Request
+
+Se debe proveer el ID del trabajo por URL <br>
+Este endpoint permite URL Queries para paginación.
+
+- `take` -- Límite de resultados
+- `page` -- Número de pagina.
+- `desc` -- Orden descendente.
+
+e.g.: `/rows/43e0ccad-f014-458f-a15e-2cc3e754a676?take=10&page=2&desc=true`
+
+##### Response
+
+Se devuelve un array con las filas procesadas mapeadas dinámicamente
+por el formato dado por el usuario.
+
+Si el formato es:
+
+```json
+{
+  "name": "String",
+  "age": "Number",
+  "nums?": "Array<Number>"
+}
+```
+
+entonces `response` será e.g.:
+
+_el `response` aquí es un **Array**_ <br>
+_`name: string`_ <br>
+_`age: number`_ <br>
+_`nums: number[]`_ <br>
+
+```json
+{
+  "ok": true,
+  "response": [
+    { "name": "name1", "age": 43, "nums": [1, 2, 5, 6, 8] },
+    { "name": "name2", "age": 52 },
+    { "name": "name3", "age": 24, "nums": [32, 55, 75, 94] }
+  ]
+}
+```
+
+</details>
+
+<details>
+<summary>GET /errs/:id</summary>
+
+##### Request
+
+Se debe proveer el ID del trabajo por URL <br>
+Este endpoint permite URL Queries para paginación.
+
+- `take` -- Límite de resultados
+- `page` -- Número de pagina.
+- `desc` -- Orden descendente.
+
+e.g.: `/errs/43e0ccad-f014-458f-a15e-2cc3e754a676?take=10&page=2&desc=true`
+
+##### Response
+
+Se devuelve un array de objetos que indican
+la posición de celda en la que ocurrió un error de parseo.
+
+- _el `response` aquí es un **Array**_ <br>
+- _`col: number` índice de columna del error_ <br>
+- _`row: number` índice de fila del error_ <br>
+
+e.g.:
+
+```json
+{
+  "ok": true,
+  "response": [
+    { "col": 3, "row": 43 },
+    { "col": 2, "row": 59 },
+    { "col": 1, "row": 84 }
+  ]
+}
+```
+
+</details>
+
+## Arquitectura
+
+Se utiliza `Typescript` como lenguaje y `NestJS` como framework. <br>
+Ademas se utiliza `RabbitMQ` como sistema de mensajeria
+para evitar bloquear el gateway y asegurar la persistencia de los datos con `MongoDB`. <br>
+
+El siguiente diagrama muestra el flujo de manera sencilla.
+![map](./docs/architecture.png)
