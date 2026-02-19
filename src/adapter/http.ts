@@ -17,9 +17,9 @@ const toHttpError = (err: unknown) => {
 
   const status = statusMap[appErr.code];
   const code = appErr.code as string;
-  const error = appErr.message;
+  const reason = appErr.message;
 
-  return { ok: false, error, status, code };
+  return { reason, status, code };
 };
 
 // extends http context
@@ -32,12 +32,12 @@ const implResponseExt = (res: Response): ResponseExt => {
   const ext = res as ResponseExt;
 
   ext.sendErr = (err: AppErr) => {
-    const { error, status, code } = toHttpError(err);
-    ext.status(status).send({ error, status, code });
+    const { reason, status, code } = toHttpError(err);
+    ext.status(status).send({ ok: false, err: { reason, status, code } });
   };
 
   ext.respond = (status: number, response: unknown): void => {
-    ext.status(status).send({ ok: true, res: response });
+    ext.status(status).send({ ok: true, response });
   };
 
   return ext;
