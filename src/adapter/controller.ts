@@ -17,7 +17,7 @@ export class Controllers {
       const dto = Dto.uploadReq(req);
 
       const response = await this.use.uploadFile(dto);
-      res.status(201).send(response);
+      res.respond(201, response);
     } catch (err) {
       res.sendErr(err);
     }
@@ -29,7 +29,7 @@ export class Controllers {
       const dto = Dto.statusReq(id);
 
       const response = await this.use.getStatus(dto);
-      res.status(200).send(response);
+      res.respond(200, response);
     } catch (err) {
       res.sendErr(err);
     }
@@ -45,7 +45,7 @@ export class Controllers {
       const dto = Dto.dataReq(id, query);
 
       const response = await this.use.getRows(dto);
-      res.status(200).send(response);
+      res.respond(200, response);
     } catch (err) {
       res.sendErr(err);
     }
@@ -61,7 +61,7 @@ export class Controllers {
       const dto = Dto.dataReq(id, query);
 
       const response = await this.use.getCellErrs(dto);
-      res.status(200).send(response);
+      res.respond(200, response);
     } catch (err) {
       res.sendErr(err);
     }

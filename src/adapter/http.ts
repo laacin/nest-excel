@@ -19,12 +19,13 @@ const toHttpError = (err: unknown) => {
   const code = appErr.code as string;
   const error = appErr.message;
 
-  return { error, status, code };
+  return { ok: false, error, status, code };
 };
 
 // extends http context
 export interface ResponseExt extends Response {
   sendErr(err: unknown): void;
+  respond(status: number, res: unknown): void;
 }
 
 const implResponseExt = (res: Response): ResponseExt => {
@@ -33,6 +34,10 @@ const implResponseExt = (res: Response): ResponseExt => {
   ext.sendErr = (err: AppErr) => {
     const { error, status, code } = toHttpError(err);
     ext.status(status).send({ error, status, code });
+  };
+
+  ext.respond = (status: number, response: unknown): void => {
+    ext.status(status).send({ ok: true, res: response });
   };
 
   return ext;
