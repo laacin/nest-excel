@@ -37,7 +37,7 @@ describe('AppController (e2e)', () => {
       await sleep(1000);
     }
 
-    const rows = (await api.rowsReq(jobId, { mapped: true, take: 2 })).Ok(200);
+    const rows = (await api.rowsReq(jobId, { take: 2 })).Ok(200);
     expect(rows).toEqual([
       {
         name: 'name1',
@@ -89,7 +89,7 @@ describe('AppController (e2e)', () => {
       await sleep(2000);
     }
 
-    const rows = (await api.rowsReq(jobId, { take: 1, mapped: true })).Ok(200);
+    const rows = (await api.rowsReq(jobId, { take: 1 })).Ok(200);
     expect(rows).toEqual([
       {
         name: 'name1',

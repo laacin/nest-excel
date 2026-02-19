@@ -38,7 +38,7 @@ export class ApiTest {
     const parts: string[] = [];
     if (opts?.take) parts.push(`take=${opts.take}`);
     if (opts?.page) parts.push(`page=${opts.page}`);
-    if (opts?.mapped) parts.push(`mapped=true`);
+    if (opts?.desc) parts.push(`desc=true`);
 
     const params = parts.join('&');
     return `?${params}`;
@@ -60,10 +60,10 @@ class ApiResponse<T> {
 
   private resolveRes<T>(res: Response, shouldOk: boolean): Res<T> {
     const body = res.body as Record<string, unknown>;
-    const ok = !body.error;
+    const { ok } = body;
     expect(ok).toEqual(shouldOk);
 
-    return body as Res<T>;
+    return ok ? (body.response as Res<T>) : (body.err as Res<T>);
   }
 }
 
@@ -71,11 +71,11 @@ class ApiResponse<T> {
 interface PaginationOpts {
   take?: number;
   page?: number;
-  mapped?: boolean;
+  desc?: boolean;
 }
 
 interface ErrResponse {
-  error: string;
+  reason: string;
   status: number;
   code: string;
 }
@@ -93,7 +93,7 @@ interface StatusResponse {
 }
 
 // Helpers
-type Res<T> = (T & { ok: true }) | (ErrResponse & { ok: false });
+type Res<T> = { ok: true; response: T } | (ErrResponse & { ok: false });
 
 const createBuf = () => {
   return Buffer.from('PK\u0003\u0004\u0014\u0000\u0006\u0000');
