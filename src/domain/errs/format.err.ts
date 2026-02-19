@@ -20,7 +20,7 @@ export class FmtErr extends AppErr {
   static invalidType(received: string) {
     return new FmtErr(
       ERR_CODE.VALIDATION,
-      `Type ${received} is not supported or is invalid`,
+      `Type '${received}' is not supported or is invalid`,
     );
   }
 }

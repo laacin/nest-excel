@@ -8,7 +8,7 @@ export class ParseErr extends AppErr {
   static missingRequiredCol(col: string) {
     return new ParseErr(
       ERR_CODE.VALIDATION,
-      `Table does not contain the required column: ${col}`,
+      `Table does not contain the required column: '${col}'`,
     );
   }
 }
