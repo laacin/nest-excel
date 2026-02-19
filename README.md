@@ -12,8 +12,6 @@ y parseado usando el `format` dado. <br>
 Este responderá con un ID que se utilizará para consultar el estado del trabajo y
 obtener el resultado de las filas y errores de celda.
 
-### Formato
-
 El formato debe ser:
 
 ```json
@@ -30,14 +28,12 @@ e.g.:
 }
 ```
 
+Y debe ser enviado como `string`.
+
 - Tipos soportados: `String`, `Number`, `Boolean`, `Date`
 - Cada uno de los tipos puede ser un array: `Array<Number>`, `Array<Boolean>`, ...
 - Añadir un `?` al final de la columna la hace opcional.
 - Los nombres de las columnas son case sensitive.
-
-### Archivo
-
-El archivo debe ser formato `xlsx`
 
 ## Endpoints
 
@@ -93,15 +89,15 @@ _`jobId: string` ID del trabajo. utilizado para recuperar el estado o datos_
 </details>
 
 <details>
-<summary>GET /status/:JobId</summary>
+<summary>GET /status/:id</summary>
 
-##### Request
+#### Request
 
 Se debe proveer el ID del trabajo por URL
 
 e.g.: `/status/43e0ccad-f014-458f-a15e-2cc3e754a676`
 
-##### Response
+#### Response
 
 Se pueden devolver diferentes resultados
 dependiendo del valor `status` del trabajo. <br>
@@ -174,9 +170,9 @@ Los contadores representan el progreso actual.
 </details>
 
 <details>
-<summary>GET /rows/:jobId</summary>
+<summary>GET /rows/:id</summary>
 
-##### Request
+#### Request
 
 Se debe proveer el ID del trabajo por URL <br>
 Este endpoint permite URL Queries para paginación.
@@ -187,7 +183,7 @@ Este endpoint permite URL Queries para paginación.
 
 e.g.: `/rows/43e0ccad-f014-458f-a15e-2cc3e754a676?take=10&page=2&desc=true`
 
-##### Response
+#### Response
 
 Se devuelve un array con las filas procesadas mapeadas dinámicamente
 por el formato dado por el usuario.
@@ -225,7 +221,7 @@ _`nums: number[]`_ <br>
 <details>
 <summary>GET /errs/:id</summary>
 
-##### Request
+#### Request
 
 Se debe proveer el ID del trabajo por URL <br>
 Este endpoint permite URL Queries para paginación.
@@ -236,7 +232,7 @@ Este endpoint permite URL Queries para paginación.
 
 e.g.: `/errs/43e0ccad-f014-458f-a15e-2cc3e754a676?take=10&page=2&desc=true`
 
-##### Response
+#### Response
 
 Se devuelve un array de objetos que indican
 la posición de celda en la que ocurrió un error de parseo.
