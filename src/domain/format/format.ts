@@ -1,5 +1,5 @@
 import { CellErr, RawRow, Row } from '@domain/entity';
-import { FmtErr, ParseErr } from '@domain/errs';
+import { AppErr, FmtErr, ParseErr } from '@domain/errs';
 import { ValidType, isValidType, parseType } from '@domain/format/parser';
 
 export interface FormatRules {
@@ -43,7 +43,7 @@ export class Format {
       this.rules = rules;
       if (rawCols) this.loadRawCols(rawCols);
     } catch (e) {
-      throw e instanceof FmtErr ? e : FmtErr.invalid();
+      throw e instanceof AppErr ? e : FmtErr.invalid();
     }
   }
 

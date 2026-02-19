@@ -86,6 +86,7 @@ export class JobProcessingUseCase implements OnModuleInit {
           this.persist.countRows(jobId),
           this.persist.countCellErrs(jobId),
         ]);
+
         job.rowCount = rowCount;
         job.cellErrCount = cellErrCount;
       }
@@ -191,7 +192,6 @@ export class JobProcessingUseCase implements OnModuleInit {
         jobId,
         status: STATUS.DONE,
         cols: fmt.getCols(),
-        totalRows: totalRows,
         rowCount: rowCountFinal,
         cellErrCount: cellErrCountFinal,
         finishedAt: new Date(),

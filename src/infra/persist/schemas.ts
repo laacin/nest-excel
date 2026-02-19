@@ -43,7 +43,6 @@ export const mapJob = ({ jobId, status, ...rest }: JobPersist): Job => {
         jobId,
         status,
         cols: rest.cols!,
-        totalRows: rest.totalRows!,
         rowCount: rest.rowCount!,
         cellErrCount: rest.cellErrCount!,
         finishedAt: rest.finishedAt!,

@@ -18,7 +18,7 @@ export interface JobAsDone {
   jobId: string;
   status: STATUS.DONE;
   cols: string[];
-  totalRows: number;
+  // totalRows: number;
   rowCount: number;
   cellErrCount: number;
   finishedAt: Date;
