@@ -58,12 +58,14 @@ export class RabbitMqImpl implements OnModuleDestroy, MessagingService {
       await work(data);
       this.ch.ack(msg);
     } catch (err) {
+      let fallbackFails = false;
+
       try {
         await onErr?.fallback?.(err, data);
       } catch {
-        // end or requeue
+        fallbackFails = true;
       } finally {
-        this.ch.nack(msg, false, onErr?.requeue ?? false);
+        this.ch.nack(msg, false, fallbackFails && (onErr?.requeue ?? false));
       }
     }
   }
