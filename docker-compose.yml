@@ -1,5 +1,5 @@
 services:
-  mongo:
+  mongodb:
     image: mongo:latest
     container_name: mongodb
     ports:
@@ -9,7 +9,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:latest
-    container_name: amqp
+    container_name: rabbitmq
     ports:
       - '5672:5672'
     environment:
@@ -18,12 +18,14 @@ services:
 
   api:
     build: .
-    container_name: api
+    container_name: nest_excel_api
     ports:
       - '3000:3000'
     depends_on:
-      - mongo
+      - mongodb
       - rabbitmq
+    environment:
+      - DEPLOY_ENV=docker_dev
 
 volumes:
   mongo_data:

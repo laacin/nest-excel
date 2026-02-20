@@ -1,6 +1,6 @@
 export interface InfraConfig {
   mongo?: MongoConfig;
-  amqp?: RabbitMQConfig;
+  rabbitmq?: RabbitMQConfig;
 }
 
 interface MongoConfig {
@@ -24,7 +24,7 @@ const DEFAULT_MONGO: MongoConfig = {
   db: 'mydb',
 };
 
-const DEFAULT_AMQP: RabbitMQConfig = {
+const DEFAULT_RABBITMQ: RabbitMQConfig = {
   host: 'localhost',
   port: 5672,
   user: 'guest',
@@ -38,8 +38,8 @@ export const resolveCfg = (cfg?: InfraConfig) => {
     ? `mongodb://${mongo.user}:${mongo.pass}@${mongo.host}:${mongo.port}/${mongo.db}`
     : `mongodb://${mongo.host}:${mongo.port}/${mongo.db}`;
 
-  const amqp = cfg?.amqp ?? DEFAULT_AMQP;
-  const amqpUrl = `amqp://${amqp.user}:${amqp.pass}@${amqp.host}:${amqp.port}`;
+  const rmq = cfg?.rabbitmq ?? DEFAULT_RABBITMQ;
+  const rmqUrl = `amqp://${rmq.user}:${rmq.pass}@${rmq.host}:${rmq.port}`;
 
-  return { mongoUrl, amqpUrl } as const;
+  return { mongoUrl, rmqUrl } as const;
 };

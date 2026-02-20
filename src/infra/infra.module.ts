@@ -8,21 +8,21 @@ import { InfraConfig, resolveCfg } from '@infra/config';
 export class InfraModule {
   static async forRootAsync(cfg?: InfraConfig): Promise<DynamicModule> {
     const mongo = new MongoImpl();
-    const amqp = new RabbitMqImpl(() => mongo.isConnected());
+    const rabbitmq = new RabbitMqImpl(() => mongo.isConnected());
 
-    const { mongoUrl, amqpUrl } = resolveCfg(cfg);
+    const { mongoUrl, rmqUrl } = resolveCfg(cfg);
 
     await retryConn('MongoDB', 5, false, () => mongo.connect(mongoUrl));
-    await retryConn('RabbitMQ', 5, true, () => amqp.connect(amqpUrl));
+    await retryConn('RabbitMQ', 5, true, () => rabbitmq.connect(rmqUrl));
 
     mongo.setup({
       onConnect: () => {
-        void amqp.runConsumers();
+        void rabbitmq.runConsumers();
         console.log('mongo up -> running consumers');
       },
 
       onDisconnect: () => {
-        void amqp.stopConsumers();
+        void rabbitmq.stopConsumers();
         console.log('mongo down -> stopping consumers');
       },
     });
@@ -31,7 +31,7 @@ export class InfraModule {
       module: InfraModule,
       providers: [
         { provide: PERSIST, useValue: mongo },
-        { provide: MESSAGING, useValue: amqp },
+        { provide: MESSAGING, useValue: rabbitmq },
       ],
       exports: [PERSIST, MESSAGING],
     };
