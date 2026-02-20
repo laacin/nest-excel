@@ -4,6 +4,20 @@ Nest-excel es un lector de archivos XLSX
 que recibe un formato de parseo y un archivo,
 valida y parsea las filas para finalmente persistirlas.
 
+## Inicialización
+
+Se puede levantar todos los servicios (DB + Rabbit + API):
+
+```bash
+docker-compose up -d
+```
+
+O bien, levantar solo MongoDB y RabbitMQ, y luego iniciar la API manualmente:
+
+```bash
+docker-compose up -d mongodb rabbitmq && yarn start
+```
+
 ## Uso
 
 A través del endpoint `POST /upload` con el header `multipart/form-data`
