@@ -12,6 +12,18 @@ services:
     container_name: amqp
     ports:
       - '5672:5672'
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  api:
+    build: .
+    container_name: api
+    ports:
+      - '3000:3000'
+    depends_on:
+      - mongo
+      - rabbitmq
 
 volumes:
   mongo_data:
