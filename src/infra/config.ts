@@ -14,8 +14,8 @@ interface MongoConfig {
 interface RabbitMQConfig {
   host: string;
   port: number;
-  user?: string;
-  pass?: string;
+  user: string;
+  pass: string;
 }
 
 const DEFAULT_MONGO: MongoConfig = {
@@ -33,6 +33,7 @@ const DEFAULT_AMQP: RabbitMQConfig = {
 
 export const resolveCfg = (cfg?: InfraConfig) => {
   const mongo = cfg?.mongo ?? DEFAULT_MONGO;
+
   const mongoUrl = mongo.user
     ? `mongodb://${mongo.user}:${mongo.pass}@${mongo.host}:${mongo.port}/${mongo.db}`
     : `mongodb://${mongo.host}:${mongo.port}/${mongo.db}`;
