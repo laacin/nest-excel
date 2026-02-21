@@ -16,7 +16,6 @@ const infraCfgs: Record<string, InfraConfig> = {
 
 async function bootstrap() {
   const deployEnv = process.env.DEPLOY_ENV ?? 'local';
-
   const infraCfg = infraCfgs[deployEnv];
 
   const mod = await MainModule.forRootAsync({ infra: infraCfg });

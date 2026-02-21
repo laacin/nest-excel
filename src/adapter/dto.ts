@@ -27,20 +27,29 @@ export class Dto {
       throw JobErr.notFound();
     }
 
-    const desc = Boolean(input.desc);
-    let page = Number(input.page);
-    let take = Number(input.take);
+    const desc = Boolean(input.desc ?? false);
+    let page = Number(input.page ?? NaN);
+    let take = Number(input.take ?? NaN);
     page = !Number.isNaN(page) && page > 0 ? page : 1;
-    take = !Number.isNaN(take) && take > 0 ? take : 1;
+    take = !Number.isNaN(take) && take > 0 ? take : DEFAULT_TAKE;
+
+    page = page > MAX_PAGE ? MAX_PAGE : page;
+
+    const limit = take > MAX_TAKE ? MAX_TAKE : take;
+    const offset = (page - 1) * limit;
 
     return {
       jobId,
-      limit: take,
-      offset: (page - 1) * take,
+      limit,
+      offset,
       desc,
     };
   }
 }
+
+const MAX_PAGE = 1_000_000;
+const DEFAULT_TAKE = 50;
+const MAX_TAKE = 100;
 
 const UUID_V4_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
