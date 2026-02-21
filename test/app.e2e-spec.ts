@@ -6,6 +6,8 @@ import { sleep } from '@test/test-utils';
 import { ApiTest } from '@test/test-api-requests';
 import { downDB, setupBefore, upDB } from '@test/test-setup';
 import { mockSheets } from '@test/test-mocks';
+import { STATUS } from '@domain/entity';
+import { ParseErr } from '@domain/errs';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -30,10 +32,10 @@ describe('AppController (e2e)', () => {
 
     const { jobId } = (await api.uploadFile({ file, format })).Ok(201);
 
-    for (let i = 0; i < 10; i++) {
+    while (true) {
       const { status } = (await api.statusReq(jobId)).Ok(200);
 
-      if (status === 'done') break;
+      if (status === STATUS.DONE) break;
       await sleep(1000);
     }
 
@@ -71,7 +73,7 @@ describe('AppController (e2e)', () => {
 
     while (true) {
       const { status } = (await api.statusReq(jobId)).Ok(200);
-      if (status === 'processing') {
+      if (status === STATUS.PROCESSING) {
         await downDB(app);
         break;
       }
@@ -84,7 +86,7 @@ describe('AppController (e2e)', () => {
 
     while (true) {
       const { status } = (await api.statusReq(jobId)).Ok(200);
-      if (status === 'done') break;
+      if (status === STATUS.DONE) break;
 
       await sleep(2000);
     }
@@ -98,5 +100,54 @@ describe('AppController (e2e)', () => {
         nums: [1, 2, 4, 5],
       },
     ]);
-  }, 50000);
+  }, 10000);
+
+  it('with_cell_errs', async () => {
+    const file = 'invalid_types.xlsx';
+    const format =
+      '{ "name": "String", "age": "Number", "nums": "Array<Number>" }';
+
+    const { jobId } = (await api.uploadFile({ file, format })).Ok(201);
+
+    while (true) {
+      const { status } = (await api.statusReq(jobId)).Ok(200);
+      if (status === STATUS.DONE) break;
+
+      await sleep(1000);
+    }
+
+    const [rows, cellErrs] = await Promise.all([
+      api.rowsReq(jobId, { take: 2 }),
+      api.cellErrsReq(jobId, { take: 2 }),
+    ]);
+
+    expect(rows.Ok(200)).toEqual([
+      { name: 'name5', age: null, nums: [1, 2] },
+      { name: 'name6', age: 42, nums: null },
+    ]);
+
+    expect(cellErrs.Ok(200)).toEqual([
+      { row: 1, col: 2 },
+      { row: 2, col: 3 },
+    ]);
+  });
+
+  it('request_error_in_middle_of_process', async () => {
+    const file = 'valid.xlsx';
+    const format = '{ "other": "Boolean" }';
+
+    const { jobId } = (await api.uploadFile({ file, format })).Ok(201);
+
+    while (true) {
+      const job = (await api.statusReq(jobId)).Ok(200);
+
+      if (job.status !== STATUS.ERROR) {
+        await sleep(1000);
+        continue;
+      }
+
+      expect(job.reason).toEqual(ParseErr.missingRequiredCol('other').message);
+      break;
+    }
+  });
 });
