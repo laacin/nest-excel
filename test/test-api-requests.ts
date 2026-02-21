@@ -1,3 +1,4 @@
+import { Job } from '@domain/entity';
 import { INestApplication } from '@nestjs/common';
 import request, { Response } from 'supertest';
 import { App } from 'supertest/types';
@@ -17,7 +18,7 @@ export class ApiTest {
   async statusReq(jobId: string) {
     const res = await request(this.app.getHttpServer()).get(`/status/${jobId}`);
 
-    return new ApiResponse<StatusResponse>(res);
+    return new ApiResponse<Job>(res);
   }
 
   async rowsReq(jobId: string, opts?: PaginationOpts) {
@@ -82,14 +83,6 @@ interface ErrResponse {
 
 interface UploadFileResponse {
   jobId: string;
-}
-
-interface StatusResponse {
-  status: string;
-  cols: string[];
-  totalRows: number;
-  rowCount: number;
-  cellErrCount: number;
 }
 
 // Helpers
